@@ -1104,6 +1104,10 @@
     const ORDER_LAND_BUFFER = 90;
     const ORDER_COMPLETE_HOLD = 1120;
     const ORDER_EXIT_TIME = 480;
+    const ORDER_ENTRY_DELAY = 80;
+    const ORDER_ENTRY_TIME = 420;
+    const ORDER_ENTRY_SETTLE = 180;
+    const ORDER_INCOMING_TIME = ORDER_ENTRY_DELAY + ORDER_ENTRY_TIME + ORDER_ENTRY_SETTLE;
     const GAME_MODES = {
       NORMAL: "normal",
       ORDERS: "orders",
@@ -1200,6 +1204,7 @@
     let exitingOrderIds = new Set();
     let removableOrderIds = new Set();
     let orderCompletionTimers = new Map();
+    let incomingOrderTimers = new Map();
     let totalDeliveries = 0;
     let completedDeliveries = 0;
     let levelConfig = {
@@ -1255,11 +1260,14 @@
       Array.from(orderCompletionTimers.keys()).forEach((orderId) => {
         clearOrderCompletionMeta(orderId);
       });
+      Array.from(incomingOrderTimers.values()).forEach((timer) => window.clearTimeout(timer));
       completingOrderIds = new Set();
       burstingOrderIds = new Set();
       exitingOrderIds = new Set();
       removableOrderIds = new Set();
       orderCompletionTimers = new Map();
+      incomingOrderTimers = new Map();
+      incomingOrderIds = new Set();
     }
 
     function captureOrderState() {
@@ -1857,7 +1865,6 @@
         const orderClasses = ["order-card"];
         if (incomingOrderIds.has(order.id)) {
           orderClasses.push("is-new");
-          window.setTimeout(() => incomingOrderIds.delete(order.id), 900);
         }
         if (completingOrderIds.has(order.id)) {
           orderClasses.push("is-complete-pending");
@@ -2244,11 +2251,22 @@
     }
 
     function hasOpenOrderForType(type) {
-      return activeOrders.some((order) => order.items.some((item) => !item.filled && item.type === type));
+      return activeOrders.some((order) => {
+        return isOrderReadyForDelivery(order) && order.items.some((item) => !item.filled && item.type === type);
+      });
+    }
+
+    function hasReservedOrderForType(type) {
+      return activeOrders.some((order) => {
+        return isOrderReservedForDelivery(order) && order.items.some((item) => !item.filled && item.type === type);
+      });
     }
 
     function fillOrderWithType(type, options = {}) {
       for (const order of activeOrders) {
+        if (!isOrderReadyForDelivery(order)) {
+          continue;
+        }
         const itemIndex = order.items.findIndex((item) => !item.filled && item.type === type);
         const orderItem = order.items[itemIndex];
         if (!orderItem) {
@@ -2284,9 +2302,40 @@
     function replenishOrders() {
       while (activeOrders.length < levelConfig.orderCount && orderQueue.length) {
         const nextOrder = orderQueue.shift();
-        incomingOrderIds.add(nextOrder.id);
+        markIncomingOrder(nextOrder.id);
         activeOrders.push(nextOrder);
       }
+    }
+
+    function isOrderReadyForDelivery(order) {
+      return order
+        && !incomingOrderIds.has(order.id)
+        && !completingOrderIds.has(order.id)
+        && !exitingOrderIds.has(order.id);
+    }
+
+    function isOrderReservedForDelivery(order) {
+      return order
+        && !completingOrderIds.has(order.id)
+        && !exitingOrderIds.has(order.id);
+    }
+
+    function markIncomingOrder(orderId) {
+      const existingTimer = incomingOrderTimers.get(orderId);
+      if (existingTimer) {
+        window.clearTimeout(existingTimer);
+      }
+      incomingOrderIds.add(orderId);
+      const timer = window.setTimeout(() => {
+        incomingOrderTimers.delete(orderId);
+        incomingOrderIds.delete(orderId);
+        if (levelFailed) {
+          return;
+        }
+        renderOrdersPanel();
+        processAutoCollections({ render: true, check: true, animate: true });
+      }, ORDER_INCOMING_TIME);
+      incomingOrderTimers.set(orderId, timer);
     }
 
     function removeCompletedOrderNow(orderId) {
@@ -2403,7 +2452,7 @@
       for (let shelfIndex = 0; shelfIndex < board.length; shelfIndex += 1) {
         for (let slotIndex = 0; slotIndex < SLOTS_PER_SHELF; slotIndex += 1) {
           const item = board[shelfIndex][slotIndex];
-          if (!canAutoDeliverBoardItem(item)) {
+          if (!canAutoDeliverBoardItem(item) || hasReservedOrderForType(item.type)) {
             continue;
           }
           const sourceRect = getBoardItemRect(item, shelfIndex, slotIndex);
