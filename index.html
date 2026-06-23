@@ -244,7 +244,7 @@
 
     .order-card.is-new {
       animation: orderSlideIn 420ms cubic-bezier(0.18, 0.84, 0.36, 1) both;
-      animation-delay: 1700ms;
+      animation-delay: 2100ms;
     }
 
     .order-card-ghost {
@@ -783,8 +783,8 @@
 
     @keyframes orderCompleteHold {
       0% {
-        transform: scale(0.94);
-        opacity: 0;
+        transform: scale(1);
+        opacity: 1;
       }
 
       18% {
@@ -1097,6 +1097,7 @@
     const MAX_STAGE = 2;
     const MERGE_TIME = 330;
     const DELIVERY_TIME = 720;
+    const ORDER_LAND_BUFFER = 90;
     const ORDER_COMPLETE_HOLD = 1120;
     const ORDER_EXIT_TIME = 480;
     const GAME_MODES = {
@@ -1822,7 +1823,7 @@
         const orderClasses = ["order-card"];
         if (incomingOrderIds.has(order.id)) {
           orderClasses.push("is-new");
-          window.setTimeout(() => incomingOrderIds.delete(order.id), 2300);
+          window.setTimeout(() => incomingOrderIds.delete(order.id), 3000);
         }
         orderEl.className = orderClasses.join(" ");
         orderEl.dataset.orderId = order.id;
@@ -1957,24 +1958,27 @@
         return;
       }
 
+      const ghostEl = document.createElement("div");
+      ghostEl.className = "order-card order-card-ghost";
+      ghostEl.style.left = `${cardRect.left}px`;
+      ghostEl.style.top = `${cardRect.top}px`;
+      ghostEl.style.width = `${cardRect.width}px`;
+      ghostEl.style.height = `${cardRect.height}px`;
+      ghostEl.innerHTML = cardHtml;
+      document.body.appendChild(ghostEl);
+
       window.setTimeout(() => {
-        const ghostEl = document.createElement("div");
-        ghostEl.className = "order-card order-card-ghost is-completing";
-        ghostEl.style.left = `${cardRect.left}px`;
-        ghostEl.style.top = `${cardRect.top}px`;
-        ghostEl.style.width = `${cardRect.width}px`;
-        ghostEl.style.height = `${cardRect.height}px`;
-        ghostEl.innerHTML = `${cardHtml}${renderCompleteParticles()}`;
-        document.body.appendChild(ghostEl);
+        ghostEl.classList.add("is-completing");
+        ghostEl.insertAdjacentHTML("beforeend", renderCompleteParticles());
+      }, DELIVERY_TIME + ORDER_LAND_BUFFER);
 
-        window.setTimeout(() => {
-          ghostEl.classList.add("is-exiting");
-        }, ORDER_COMPLETE_HOLD);
+      window.setTimeout(() => {
+        ghostEl.classList.add("is-exiting");
+      }, DELIVERY_TIME + ORDER_LAND_BUFFER + ORDER_COMPLETE_HOLD);
 
-        window.setTimeout(() => {
-          ghostEl.remove();
-        }, ORDER_COMPLETE_HOLD + ORDER_EXIT_TIME + 80);
-      }, Math.max(160, DELIVERY_TIME - 140));
+      window.setTimeout(() => {
+        ghostEl.remove();
+      }, DELIVERY_TIME + ORDER_LAND_BUFFER + ORDER_COMPLETE_HOLD + ORDER_EXIT_TIME + 80);
     }
 
     function renderCompleteParticles() {
