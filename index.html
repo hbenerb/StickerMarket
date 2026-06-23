@@ -243,8 +243,8 @@
     }
 
     .order-card.is-new {
-      animation: orderSlideIn 320ms cubic-bezier(0.18, 0.84, 0.36, 1) both;
-      animation-delay: 420ms;
+      animation: orderSlideIn 420ms cubic-bezier(0.18, 0.84, 0.36, 1) both;
+      animation-delay: 1700ms;
     }
 
     .order-card-ghost {
@@ -255,8 +255,29 @@
       will-change: transform, opacity;
     }
 
+    .order-card-ghost.is-completing {
+      animation: orderCompleteHold 920ms ease-out both;
+      box-shadow:
+        0 12px 26px rgba(33, 27, 20, 0.14),
+        0 0 0 3px rgba(244, 191, 69, 0.34);
+    }
+
+    .order-card-ghost .complete-particle {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: var(--win);
+      box-shadow: 0 0 0 2px rgba(255, 248, 223, 0.55);
+      opacity: 0;
+      transform: translate(-50%, -50%) scale(0.5);
+      animation: completeParticle 980ms ease-out forwards;
+    }
+
     .order-card-ghost.is-exiting {
-      animation: orderExit 300ms ease-in forwards;
+      animation: orderExit 480ms ease-in forwards;
     }
 
     .order-icon,
@@ -296,11 +317,27 @@
       will-change: transform, opacity;
       filter: drop-shadow(0 15px 16px rgba(28, 22, 18, 0.28));
       transition:
-        transform 440ms cubic-bezier(0.2, 0.82, 0.32, 1),
-        opacity 440ms ease;
+        transform 720ms cubic-bezier(0.18, 0.78, 0.24, 1),
+        opacity 720ms ease;
+    }
+
+    .delivery-fly-item::before {
+      content: "";
+      position: absolute;
+      left: -34%;
+      top: 31%;
+      width: 76%;
+      height: 38%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, rgba(244, 191, 69, 0), rgba(244, 191, 69, 0.48));
+      filter: blur(3px);
+      opacity: 0.9;
+      transform: rotate(-12deg);
     }
 
     .delivery-fly-item svg {
+      position: relative;
+      z-index: 1;
       width: 100%;
       height: 100%;
       display: block;
@@ -744,6 +781,42 @@
       }
     }
 
+    @keyframes orderCompleteHold {
+      0% {
+        transform: scale(0.94);
+        opacity: 0;
+      }
+
+      18% {
+        transform: scale(1.08);
+        opacity: 1;
+      }
+
+      42%,
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+
+    @keyframes completeParticle {
+      0% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.4);
+      }
+
+      18% {
+        opacity: 1;
+      }
+
+      100% {
+        opacity: 0;
+        transform:
+          translate(calc(-50% + var(--particle-x)), calc(-50% + var(--particle-y)))
+          scale(0.9);
+      }
+    }
+
     @keyframes orderExit {
       0% {
         transform: translateX(0) scale(1);
@@ -758,7 +831,7 @@
 
     @media (max-width: 560px) {
       .app {
-        padding: 8px 0 10px;
+        padding: calc(14px + env(safe-area-inset-top, 0px)) 0 10px;
         gap: 6px;
       }
 
@@ -1035,8 +1108,9 @@
     const SLOTS_PER_SHELF = 3;
     const MAX_STAGE = 2;
     const MERGE_TIME = 330;
-    const DELIVERY_TIME = 440;
-    const ORDER_EXIT_DELAY = 320;
+    const DELIVERY_TIME = 720;
+    const ORDER_COMPLETE_HOLD = 1120;
+    const ORDER_EXIT_TIME = 480;
     const GAME_MODES = {
       NORMAL: "normal",
       ORDERS: "orders",
@@ -1587,7 +1661,8 @@
       let total = Array.from(remaining.values()).reduce((sum, count) => sum + count, 0);
       while (total > 0) {
         const availableTypes = shuffle(Array.from(remaining.keys()).filter((type) => remaining.get(type) > 0), random);
-        const itemCount = Math.min(config.orderItemCount, availableTypes.length);
+        const maxItemCount = Math.min(config.orderItemCount, availableTypes.length);
+        const itemCount = 1 + Math.floor(random() * maxItemCount);
         const orderTypes = availableTypes.slice(0, itemCount);
         orderTypes.forEach((type) => {
           remaining.set(type, remaining.get(type) - 1);
@@ -1768,7 +1843,7 @@
         const orderClasses = ["order-card"];
         if (incomingOrderIds.has(order.id)) {
           orderClasses.push("is-new");
-          window.setTimeout(() => incomingOrderIds.delete(order.id), 900);
+          window.setTimeout(() => incomingOrderIds.delete(order.id), 2300);
         }
         orderEl.className = orderClasses.join(" ");
         orderEl.dataset.orderId = order.id;
@@ -1905,20 +1980,41 @@
 
       window.setTimeout(() => {
         const ghostEl = document.createElement("div");
-        ghostEl.className = "order-card order-card-ghost";
+        ghostEl.className = "order-card order-card-ghost is-completing";
         ghostEl.style.left = `${cardRect.left}px`;
         ghostEl.style.top = `${cardRect.top}px`;
         ghostEl.style.width = `${cardRect.width}px`;
         ghostEl.style.height = `${cardRect.height}px`;
-        ghostEl.innerHTML = cardHtml;
+        ghostEl.innerHTML = `${cardHtml}${renderCompleteParticles()}`;
         document.body.appendChild(ghostEl);
-        window.requestAnimationFrame(() => {
+
+        window.setTimeout(() => {
           ghostEl.classList.add("is-exiting");
-        });
+        }, ORDER_COMPLETE_HOLD);
+
         window.setTimeout(() => {
           ghostEl.remove();
-        }, 380);
-      }, ORDER_EXIT_DELAY);
+        }, ORDER_COMPLETE_HOLD + ORDER_EXIT_TIME + 80);
+      }, Math.max(160, DELIVERY_TIME - 140));
+    }
+
+    function renderCompleteParticles() {
+      const points = [
+        [-34, -22],
+        [-22, 24],
+        [0, -34],
+        [24, -24],
+        [35, 16],
+        [4, 34],
+        [-40, 5],
+        [42, -2]
+      ];
+      return points.map(([x, y], index) => `
+        <span
+          class="complete-particle"
+          style="--particle-x: ${x}px; --particle-y: ${y}px; animation-delay: ${index * 46}ms;"
+        ></span>
+      `).join("");
     }
 
     function onSlotKeydown(event) {
