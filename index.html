@@ -228,7 +228,13 @@
       overflow: hidden;
     }
 
+    .orders-track {
+      overflow: visible;
+    }
+
     .order-card {
+      position: relative;
+      flex: 0 0 auto;
       min-width: 78px;
       height: 58px;
       display: flex;
@@ -240,29 +246,26 @@
       border-radius: var(--radius);
       background: rgba(255, 250, 240, 0.9);
       box-shadow: 0 8px 18px rgba(33, 27, 20, 0.09);
+      overflow: visible;
     }
 
     .order-card.is-new {
       animation: orderSlideIn 420ms cubic-bezier(0.18, 0.84, 0.36, 1) both;
-      animation-delay: 2100ms;
+      animation-delay: 80ms;
     }
 
-    .order-card-ghost {
-      position: fixed;
-      z-index: 75;
-      pointer-events: none;
-      margin: 0;
-      will-change: transform, opacity;
+    .order-card.is-complete-pending {
+      z-index: 2;
     }
 
-    .order-card-ghost.is-completing {
+    .order-card.is-completing {
       animation: orderCompleteHold 920ms ease-out both;
       box-shadow:
         0 12px 26px rgba(33, 27, 20, 0.14),
         0 0 0 3px rgba(244, 191, 69, 0.34);
     }
 
-    .order-card-ghost .complete-particle {
+    .order-card .complete-particle {
       position: absolute;
       left: 50%;
       top: 50%;
@@ -276,8 +279,9 @@
       animation: completeParticle 980ms ease-out forwards;
     }
 
-    .order-card-ghost.is-exiting {
+    .order-card.is-exiting {
       animation: orderExit 480ms ease-in forwards;
+      pointer-events: none;
     }
 
     .order-icon,
@@ -1191,6 +1195,11 @@
     let orderQueue = [];
     let dockItems = [];
     let incomingOrderIds = new Set();
+    let completingOrderIds = new Set();
+    let burstingOrderIds = new Set();
+    let exitingOrderIds = new Set();
+    let removableOrderIds = new Set();
+    let orderCompletionTimers = new Map();
     let totalDeliveries = 0;
     let completedDeliveries = 0;
     let levelConfig = {
@@ -1228,6 +1237,29 @@
 
     function cloneDockItems(source) {
       return source.map((item) => ({ ...item }));
+    }
+
+    function clearOrderCompletionMeta(orderId) {
+      const timers = orderCompletionTimers.get(orderId);
+      if (timers) {
+        timers.forEach((timer) => window.clearTimeout(timer));
+      }
+      orderCompletionTimers.delete(orderId);
+      completingOrderIds.delete(orderId);
+      burstingOrderIds.delete(orderId);
+      exitingOrderIds.delete(orderId);
+      removableOrderIds.delete(orderId);
+    }
+
+    function clearOrderCompletionState() {
+      Array.from(orderCompletionTimers.keys()).forEach((orderId) => {
+        clearOrderCompletionMeta(orderId);
+      });
+      completingOrderIds = new Set();
+      burstingOrderIds = new Set();
+      exitingOrderIds = new Set();
+      removableOrderIds = new Set();
+      orderCompletionTimers = new Map();
     }
 
     function captureOrderState() {
@@ -1394,6 +1426,7 @@
       }
 
       level = nextLevel;
+      clearOrderCompletionState();
       levelConfig = { ...config };
       shelfCount = config.shelfCount;
       layers = generated.layers;
@@ -1424,6 +1457,7 @@
     }
 
     function restartLevel() {
+      clearOrderCompletionState();
       layers = cloneLayers(initialLayers);
       restoreOrderState(initialOrderState);
       incomingOrderIds = new Set();
@@ -1823,7 +1857,16 @@
         const orderClasses = ["order-card"];
         if (incomingOrderIds.has(order.id)) {
           orderClasses.push("is-new");
-          window.setTimeout(() => incomingOrderIds.delete(order.id), 3000);
+          window.setTimeout(() => incomingOrderIds.delete(order.id), 900);
+        }
+        if (completingOrderIds.has(order.id)) {
+          orderClasses.push("is-complete-pending");
+        }
+        if (burstingOrderIds.has(order.id)) {
+          orderClasses.push("is-completing");
+        }
+        if (exitingOrderIds.has(order.id)) {
+          orderClasses.push("is-exiting");
         }
         orderEl.className = orderClasses.join(" ");
         orderEl.dataset.orderId = order.id;
@@ -1837,6 +1880,9 @@
           iconEl.innerHTML = renderIcon({ type: orderItem.type, stage: MAX_STAGE });
           orderEl.appendChild(iconEl);
         });
+        if (burstingOrderIds.has(order.id)) {
+          orderEl.insertAdjacentHTML("beforeend", renderCompleteParticles());
+        }
         ordersTrack.appendChild(orderEl);
       });
 
@@ -1906,23 +1952,13 @@
 
     function getOrderVisual(orderId, itemIndex) {
       const iconEl = ordersTrack.querySelector(`.order-icon[data-order-id="${orderId}"][data-order-item-index="${itemIndex}"]`);
-      const cardEl = ordersTrack.querySelector(`.order-card[data-order-id="${orderId}"]`);
       return {
-        targetRect: copyRect(iconEl?.getBoundingClientRect()),
-        cardRect: copyRect(cardEl?.getBoundingClientRect())
+        targetRect: copyRect(iconEl?.getBoundingClientRect())
       };
     }
 
     function getFallbackTargetRect() {
       return copyRect((ordersArea.hidden ? boardEl : ordersArea).getBoundingClientRect());
-    }
-
-    function renderOrderGhostHtml(order) {
-      return order.items.map((orderItem) => `
-        <div class="order-icon${orderItem.filled ? " is-filled" : ""}">
-          ${renderIcon({ type: orderItem.type, stage: MAX_STAGE })}
-        </div>
-      `).join("");
     }
 
     function animateItemMovement(item, sourceRect, targetRect) {
@@ -1953,32 +1989,38 @@
       }, DELIVERY_TIME + 90);
     }
 
-    function animateCompletedOrder(cardRect, cardHtml) {
-      if (!cardRect || !cardHtml) {
+    function animateCompletedOrder(orderId) {
+      if (!orderId || completingOrderIds.has(orderId)) {
         return;
       }
 
-      const ghostEl = document.createElement("div");
-      ghostEl.className = "order-card order-card-ghost";
-      ghostEl.style.left = `${cardRect.left}px`;
-      ghostEl.style.top = `${cardRect.top}px`;
-      ghostEl.style.width = `${cardRect.width}px`;
-      ghostEl.style.height = `${cardRect.height}px`;
-      ghostEl.innerHTML = cardHtml;
-      document.body.appendChild(ghostEl);
+      completingOrderIds.add(orderId);
 
-      window.setTimeout(() => {
-        ghostEl.classList.add("is-completing");
-        ghostEl.insertAdjacentHTML("beforeend", renderCompleteParticles());
+      const burstTimer = window.setTimeout(() => {
+        if (!completingOrderIds.has(orderId) || levelFailed) {
+          return;
+        }
+        burstingOrderIds.add(orderId);
+        renderOrdersPanel();
       }, DELIVERY_TIME + ORDER_LAND_BUFFER);
 
-      window.setTimeout(() => {
-        ghostEl.classList.add("is-exiting");
+      const exitTimer = window.setTimeout(() => {
+        if (!completingOrderIds.has(orderId) || levelFailed) {
+          return;
+        }
+        exitingOrderIds.add(orderId);
+        renderOrdersPanel();
       }, DELIVERY_TIME + ORDER_LAND_BUFFER + ORDER_COMPLETE_HOLD);
 
-      window.setTimeout(() => {
-        ghostEl.remove();
+      const removeTimer = window.setTimeout(() => {
+        if (!completingOrderIds.has(orderId) || levelFailed) {
+          return;
+        }
+        removableOrderIds.add(orderId);
+        flushCompletedOrders();
       }, DELIVERY_TIME + ORDER_LAND_BUFFER + ORDER_COMPLETE_HOLD + ORDER_EXIT_TIME + 80);
+
+      orderCompletionTimers.set(orderId, [burstTimer, exitTimer, removeTimer]);
     }
 
     function renderCompleteParticles() {
@@ -2216,13 +2258,14 @@
         const sourceRect = options.sourceRect || visual.targetRect || getFallbackTargetRect();
         orderItem.filled = true;
         const completedOrder = order.items.every((item) => item.filled);
-        const completedCardHtml = completedOrder ? renderOrderGhostHtml(order) : "";
         completedDeliveries += 1;
-        removeCompletedOrders();
+        if (completedOrder && options.animate === false) {
+          completeOrder(order.id, false);
+        }
         if (options.animate !== false) {
           animateItemMovement({ type, stage: MAX_STAGE }, sourceRect, visual.targetRect || getFallbackTargetRect());
           if (completedOrder) {
-            animateCompletedOrder(visual.cardRect, completedCardHtml);
+            completeOrder(order.id, true);
           }
         }
         return true;
@@ -2230,13 +2273,55 @@
       return false;
     }
 
-    function removeCompletedOrders() {
-      activeOrders = activeOrders.filter((order) => !order.items.every((item) => item.filled));
+    function completeOrder(orderId, animate) {
+      if (animate) {
+        animateCompletedOrder(orderId);
+        return;
+      }
+      removeCompletedOrderNow(orderId);
+    }
+
+    function replenishOrders() {
       while (activeOrders.length < levelConfig.orderCount && orderQueue.length) {
         const nextOrder = orderQueue.shift();
         incomingOrderIds.add(nextOrder.id);
         activeOrders.push(nextOrder);
       }
+    }
+
+    function removeCompletedOrderNow(orderId) {
+      activeOrders = activeOrders.filter((order) => order.id !== orderId);
+      clearOrderCompletionMeta(orderId);
+      replenishOrders();
+    }
+
+    function flushCompletedOrders() {
+      const hasVisibleCompletedOrder = Array.from(completingOrderIds).some((orderId) => {
+        return !removableOrderIds.has(orderId) && activeOrders.some((order) => order.id === orderId);
+      });
+      if (hasVisibleCompletedOrder) {
+        return;
+      }
+
+      const removableIds = new Set(removableOrderIds);
+      let changed = false;
+      activeOrders = activeOrders.filter((order) => {
+        if (!removableIds.has(order.id)) {
+          return true;
+        }
+        clearOrderCompletionMeta(order.id);
+        changed = true;
+        return false;
+      });
+
+      if (!changed) {
+        return;
+      }
+
+      replenishOrders();
+      syncHud();
+      renderOrdersPanel();
+      processAutoCollections({ render: true, check: true, animate: true });
     }
 
     function canAutoDeliverBoardItem(item) {
@@ -2475,7 +2560,7 @@
     }
 
     function hasPendingOrders() {
-      return activeOrders.some((order) => order.items.some((item) => !item.filled)) || orderQueue.length > 0;
+      return activeOrders.length > 0 || orderQueue.length > 0;
     }
 
     function failLevel(title, message) {
