@@ -1012,24 +1012,24 @@
           <select id="modeInput">
             <option value="normal">Normal</option>
             <option value="orders">Orders</option>
-            <option value="dockAndOrders">DockAndOrders</option>
+            <option value="dockAndOrders" selected>DockAndOrders</option>
           </select>
         </label>
         <label class="field">
           <span>Shelves</span>
-          <input id="shelfInput" type="number" min="3" max="18" value="18" inputmode="numeric">
+          <input id="shelfInput" type="number" min="3" max="18" value="9" inputmode="numeric">
         </label>
         <label class="field">
           <span>Objects</span>
-          <input id="targetInput" type="number" min="1" max="50" value="5" inputmode="numeric">
+          <input id="targetInput" type="number" min="1" max="50" value="10" inputmode="numeric">
         </label>
         <label class="field">
           <span>Types</span>
-          <input id="typeInput" type="number" min="1" max="25" value="5" inputmode="numeric">
+          <input id="typeInput" type="number" min="1" max="25" value="10" inputmode="numeric">
         </label>
         <label class="field">
           <span>Spaces</span>
-          <input id="spaceInput" type="number" min="0" max="36" value="6" inputmode="numeric">
+          <input id="spaceInput" type="number" min="0" max="36" value="4" inputmode="numeric">
         </label>
         <label class="field">
           <span>Stages</span>
@@ -1038,21 +1038,9 @@
             <option value="1-2">1 ve 2</option>
             <option value="2">2</option>
             <option value="3">3</option>
-            <option value="1-2-3">1 ve 2 ve 3</option>
+            <option value="1-2-3" selected>1 ve 2 ve 3</option>
             <option value="2-3">2 ve 3</option>
           </select>
-        </label>
-        <label class="field">
-          <span>Edge</span>
-          <input id="edgeColorInput" type="color" value="#8a5a3c">
-        </label>
-        <label class="field">
-          <span>Inside</span>
-          <input id="insideColorInput" type="color" value="#d8b995">
-        </label>
-        <label class="field">
-          <span>Base</span>
-          <input id="baseColorInput" type="color" value="#caa982">
         </label>
         <label class="field" data-mode-field="orders" hidden>
           <span>Order Count</span>
@@ -1060,7 +1048,7 @@
         </label>
         <label class="field" data-mode-field="orders" hidden>
           <span>Items / Order</span>
-          <input id="orderItemCountInput" type="number" min="1" max="5" value="1" inputmode="numeric">
+          <input id="orderItemCountInput" type="number" min="1" max="5" value="2" inputmode="numeric">
         </label>
         <label class="field" data-mode-field="dock" hidden>
           <span>Dock Positions</span>
@@ -1069,7 +1057,7 @@
         <label class="field checkbox-field" data-mode-field="orders" hidden>
           <span>Triple 3rd</span>
           <span class="checkbox-control">
-            <input id="tripleThirdInput" type="checkbox" aria-label="Triple 3rd">
+            <input id="tripleThirdInput" type="checkbox" aria-label="Triple 3rd" checked>
           </span>
         </label>
         <button class="primary-button" id="generateButton" type="submit">Generate</button>
@@ -1104,7 +1092,7 @@
 
   <script>
     const BOARD_SHELF_COUNT = 18;
-    const DEFAULT_SHELF_COUNT = 18;
+    const DEFAULT_SHELF_COUNT = 9;
     const SLOTS_PER_SHELF = 3;
     const MAX_STAGE = 2;
     const MERGE_TIME = 330;
@@ -1169,9 +1157,6 @@
     const typeInput = document.getElementById("typeInput");
     const spaceInput = document.getElementById("spaceInput");
     const stageInput = document.getElementById("stageInput");
-    const edgeColorInput = document.getElementById("edgeColorInput");
-    const insideColorInput = document.getElementById("insideColorInput");
-    const baseColorInput = document.getElementById("baseColorInput");
     const orderCountInput = document.getElementById("orderCountInput");
     const orderItemCountInput = document.getElementById("orderItemCountInput");
     const dockPositionInput = document.getElementById("dockPositionInput");
@@ -1208,17 +1193,17 @@
     let totalDeliveries = 0;
     let completedDeliveries = 0;
     let levelConfig = {
-      gameMode: GAME_MODES.NORMAL,
+      gameMode: GAME_MODES.DOCK_AND_ORDERS,
       shelfCount: DEFAULT_SHELF_COUNT,
-      finalItems: 5,
-      typeCount: 5,
-      emptySlots: 6,
-      stageMode: "1",
-      stages: STAGE_OPTIONS["1"],
+      finalItems: 10,
+      typeCount: 10,
+      emptySlots: 4,
+      stageMode: "1-2-3",
+      stages: STAGE_OPTIONS["1-2-3"],
       orderCount: 3,
-      orderItemCount: 1,
+      orderItemCount: 2,
       dockPositionCount: 5,
-      tripleThird: false
+      tripleThird: true
     };
 
     function createEmptyBoard(count = shelfCount) {
@@ -1385,12 +1370,6 @@
       if (Number(spaceInput.value) > maxEmptySlots) {
         spaceInput.value = String(maxEmptySlots);
       }
-    }
-
-    function applyShelfColors() {
-      document.documentElement.style.setProperty("--shelf-edge", edgeColorInput.value);
-      document.documentElement.style.setProperty("--shelf-inside", insideColorInput.value);
-      document.documentElement.style.setProperty("--shelf-base", baseColorInput.value);
     }
 
     function syncModeFields() {
@@ -2796,9 +2775,6 @@
       syncObjectLimit();
     });
     stageInput.addEventListener("input", syncObjectLimit);
-    edgeColorInput.addEventListener("input", applyShelfColors);
-    insideColorInput.addEventListener("input", applyShelfColors);
-    baseColorInput.addEventListener("input", applyShelfColors);
     restartButton.addEventListener("click", restartLevel);
     nextButton.addEventListener("click", () => {
       if (levelFailed) {
@@ -2815,7 +2791,6 @@
       }
     });
 
-    applyShelfColors();
     syncModeFields();
     newLevel(levelConfig, level);
   </script>
