@@ -1,0 +1,2670 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Goods Merge Prototype</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%231f8f8b'/%3E%3Cpath d='M7 11h18v12H7z' fill='%23fff8ee'/%3E%3Cpath d='M10 14h4v6h-4zm8 0h4v6h-4z' fill='%23e45e4f'/%3E%3C/svg%3E">
+  <style>
+    :root {
+      --paper: #f4f1ea;
+      --ink: #1d2328;
+      --muted: #66706b;
+      --shelf-edge: #8a5a3c;
+      --shelf-inside: #d8b995;
+      --shelf-base: #caa982;
+      --accent: #1f8f8b;
+      --warn: #e45e4f;
+      --win: #f4bf45;
+      --shadow: 0 18px 42px rgba(33, 27, 20, 0.2);
+      --radius: 8px;
+      color-scheme: light;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      overflow: hidden;
+      background:
+        linear-gradient(120deg, rgba(31, 143, 139, 0.1), transparent 36%),
+        linear-gradient(300deg, rgba(228, 94, 79, 0.12), transparent 38%),
+        var(--paper);
+      color: var(--ink);
+    }
+
+    button,
+    input,
+    select {
+      font: inherit;
+    }
+
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      padding: 14px clamp(12px, 3vw, 28px) clamp(14px, 2vw, 24px);
+      gap: 12px;
+    }
+
+    .topbar {
+      width: min(100%, 900px);
+      justify-self: center;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .status {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .title {
+      margin: 0;
+      font-size: clamp(20px, 3vw, 30px);
+      line-height: 1;
+      letter-spacing: 0;
+      white-space: nowrap;
+    }
+
+    .objective {
+      color: var(--muted);
+      font-size: clamp(13px, 1.6vw, 15px);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      white-space: nowrap;
+    }
+
+    .hud {
+      position: relative;
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .counter {
+      height: 38px;
+      min-width: 74px;
+      display: grid;
+      place-items: center;
+      padding: 0 10px;
+      border: 1px solid rgba(29, 35, 40, 0.12);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.62);
+      box-shadow: 0 4px 16px rgba(33, 27, 20, 0.08);
+      color: var(--ink);
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    .counter small {
+      display: block;
+      margin-bottom: 3px;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .icon-button {
+      width: 42px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      border: 0;
+      border-radius: var(--radius);
+      background: var(--ink);
+      color: #fff8ee;
+      box-shadow: 0 8px 18px rgba(29, 35, 40, 0.22);
+      cursor: pointer;
+      transition: transform 140ms ease, background 140ms ease;
+    }
+
+    .icon-button:hover {
+      transform: translateY(-1px);
+      background: #323b42;
+    }
+
+    .icon-button:active {
+      transform: translateY(0);
+    }
+
+    .icon-button svg {
+      width: 21px;
+      height: 21px;
+      pointer-events: none;
+    }
+
+    .stage {
+      position: relative;
+      display: grid;
+      place-items: center;
+      min-height: 0;
+    }
+
+    .board {
+      width: min(96vw, 820px);
+      height: min(calc(100vh - 96px), 840px);
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-rows: repeat(6, minmax(0, 1fr));
+      gap: clamp(6px, 1.2vw, 12px);
+      padding: clamp(8px, 1.4vw, 14px);
+      border-radius: var(--radius);
+      background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.18)),
+        rgba(47, 67, 63, 0.16);
+      box-shadow: var(--shadow);
+      user-select: none;
+      touch-action: none;
+    }
+
+    .app.has-orders .board {
+      height: min(calc(100vh - 190px), 760px);
+    }
+
+    .orders-area {
+      width: min(100%, 900px);
+      justify-self: center;
+      display: grid;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .orders-area[hidden] {
+      display: none;
+    }
+
+    .orders-strip,
+    .dock-strip {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .strip-label {
+      width: 58px;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      flex: 0 0 auto;
+    }
+
+    .orders-track,
+    .dock-track {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .order-card {
+      min-width: 78px;
+      height: 58px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      padding: 6px 8px;
+      border: 1px solid rgba(29, 35, 40, 0.13);
+      border-radius: var(--radius);
+      background: rgba(255, 250, 240, 0.9);
+      box-shadow: 0 8px 18px rgba(33, 27, 20, 0.09);
+    }
+
+    .order-card.is-new {
+      animation: orderSlideIn 320ms cubic-bezier(0.18, 0.84, 0.36, 1) both;
+      animation-delay: 420ms;
+    }
+
+    .order-card-ghost {
+      position: fixed;
+      z-index: 75;
+      pointer-events: none;
+      margin: 0;
+      will-change: transform, opacity;
+    }
+
+    .order-card-ghost.is-exiting {
+      animation: orderExit 300ms ease-in forwards;
+    }
+
+    .order-icon,
+    .dock-icon {
+      position: relative;
+      width: 42px;
+      aspect-ratio: 1;
+      flex: 0 0 auto;
+    }
+
+    .order-icon svg,
+    .dock-icon svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .order-icon.is-filled {
+      opacity: 0.28;
+      filter: grayscale(1);
+    }
+
+    .order-icon.is-filled::after {
+      content: "";
+      position: absolute;
+      inset: 31% 25% 28%;
+      border-right: 4px solid var(--accent);
+      border-bottom: 4px solid var(--accent);
+      transform: rotate(40deg);
+    }
+
+    .delivery-fly-item {
+      position: fixed;
+      z-index: 90;
+      aspect-ratio: 1;
+      pointer-events: none;
+      will-change: transform, opacity;
+      filter: drop-shadow(0 15px 16px rgba(28, 22, 18, 0.28));
+      transition:
+        transform 440ms cubic-bezier(0.2, 0.82, 0.32, 1),
+        opacity 440ms ease;
+    }
+
+    .delivery-fly-item svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .dock-slot {
+      width: 48px;
+      height: 48px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(29, 35, 40, 0.16);
+      border-radius: var(--radius);
+      background: rgba(255, 250, 240, 0.74);
+      box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.35);
+    }
+
+    .dock-slot.is-filled {
+      background: rgba(255, 250, 240, 0.96);
+    }
+
+    .shelf {
+      position: relative;
+      min-width: 0;
+      min-height: 0;
+      isolation: isolate;
+      border-radius: var(--radius);
+      background: var(--shelf-edge);
+      border: 0;
+      box-shadow: none;
+      overflow: hidden;
+    }
+
+    .shelf-space {
+      min-width: 0;
+      min-height: 0;
+    }
+
+    .shelf::before,
+    .shelf::after {
+      content: "";
+      position: absolute;
+      z-index: 0;
+      border-radius: 6px;
+      pointer-events: none;
+    }
+
+    .shelf::before {
+      inset: 9% 8% 10%;
+      background: var(--shelf-inside);
+      box-shadow: none;
+      transform: none;
+    }
+
+    .shelf::after {
+      left: 8%;
+      right: 8%;
+      bottom: 10%;
+      height: 9%;
+      background: var(--shelf-base);
+      opacity: 1;
+    }
+
+    .back-row {
+      position: absolute;
+      z-index: 3;
+      inset: 12% 8% 43%;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: clamp(4px, 0.9vw, 8px);
+      align-items: start;
+      pointer-events: none;
+    }
+
+    .back-slot {
+      position: relative;
+      display: grid;
+      place-items: center;
+      min-width: 0;
+      min-height: 0;
+      height: 100%;
+    }
+
+    .back-item {
+      width: min(54%, 38px);
+      aspect-ratio: 1;
+      opacity: 0.32;
+      transform: translateY(-1px) scale(0.7);
+      filter:
+        grayscale(1)
+        contrast(0.72);
+    }
+
+    .back-item svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .slot-row {
+      position: absolute;
+      z-index: 4;
+      inset: 29% 8% 7%;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: clamp(4px, 0.9vw, 8px);
+      align-items: end;
+    }
+
+    .slot {
+      position: relative;
+      display: grid;
+      place-items: end center;
+      min-width: 0;
+      min-height: 0;
+      height: 100%;
+      border-radius: 7px;
+      background: transparent;
+      box-shadow: none;
+      overflow: visible;
+      transition: background 120ms ease, box-shadow 120ms ease, transform 120ms ease;
+    }
+
+    .slot::after {
+      content: none;
+    }
+
+    .slot.is-empty {
+      background: transparent;
+    }
+
+    .slot.can-target {
+      box-shadow: 0 0 0 2px rgba(31, 143, 139, 0.48);
+    }
+
+    .slot.merge-target {
+      background: transparent;
+      box-shadow: 0 0 0 2px rgba(244, 191, 69, 0.86);
+    }
+
+    .item {
+      position: relative;
+      z-index: 2;
+      width: min(98%, 83px);
+      aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+      margin-bottom: -6px;
+      border: 0;
+      padding: 0;
+      background: transparent;
+      color: inherit;
+      cursor: grab;
+      touch-action: none;
+      filter: drop-shadow(0 7px 5px rgba(35, 24, 19, 0.22));
+      transition: transform 140ms ease, filter 140ms ease;
+    }
+
+    .item:hover {
+      transform: translateY(-3px);
+    }
+
+    .item.is-selected {
+      transform: translateY(-7px) scale(1.05);
+      filter:
+        drop-shadow(0 10px 7px rgba(35, 24, 19, 0.22))
+        drop-shadow(0 0 0 rgba(31, 143, 139, 0.4));
+    }
+
+    .item.is-selected::before {
+      content: "";
+      position: absolute;
+      inset: -7px;
+      border-radius: 999px;
+      border: 3px solid rgba(31, 143, 139, 0.86);
+      background: rgba(255, 255, 255, 0.14);
+      z-index: -1;
+    }
+
+    .item svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+      pointer-events: none;
+      overflow: visible;
+    }
+
+    .item.stage-0 svg {
+      filter: none;
+    }
+
+    .item.stage-1 svg {
+      filter: contrast(1.12);
+    }
+
+    .item.stage-2 svg {
+      filter: saturate(1.08);
+    }
+
+    .item.merge-left {
+      animation: mergeLeft 300ms ease-in forwards;
+    }
+
+    .item.merge-right {
+      animation: mergeRight 300ms ease-in forwards;
+    }
+
+    .item.merge-center {
+      animation: mergeCenter 310ms ease-in forwards;
+    }
+
+    @keyframes mergeLeft {
+      100% {
+        transform: translateX(calc(100% + 8px)) scale(0.62);
+        opacity: 0;
+      }
+    }
+
+    @keyframes mergeRight {
+      100% {
+        transform: translateX(calc(-100% - 8px)) scale(0.62);
+        opacity: 0;
+      }
+    }
+
+    @keyframes mergeCenter {
+      45% {
+        transform: translateY(-9px) scale(1.14);
+      }
+
+      100% {
+        transform: translateY(0) scale(0.92);
+      }
+    }
+
+    .drag-ghost {
+      position: fixed;
+      z-index: 20;
+      width: 74px;
+      aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+      pointer-events: none;
+      transform: translate(-50%, -50%) scale(1.08);
+      filter: drop-shadow(0 16px 18px rgba(28, 22, 18, 0.34));
+    }
+
+    .drag-ghost svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    .slot.is-drag-source .item {
+      opacity: 0.28;
+      transform: scale(0.88);
+    }
+
+    .builder-panel {
+      position: fixed;
+      top: 66px;
+      left: 50%;
+      z-index: 45;
+      width: min(96vw, 980px);
+      translate: -50% 0;
+      padding: 12px;
+      border: 1px solid rgba(29, 35, 40, 0.14);
+      border-radius: var(--radius);
+      background: rgba(255, 250, 240, 0.94);
+      box-shadow: 0 18px 48px rgba(29, 35, 40, 0.22);
+      backdrop-filter: blur(10px);
+    }
+
+    .builder-panel[hidden] {
+      display: none;
+    }
+
+    .level-form {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(84px, 1fr)) auto;
+      gap: 10px;
+      align-items: end;
+    }
+
+    .field {
+      display: grid;
+      gap: 5px;
+      min-width: 0;
+    }
+
+    .field span {
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .field input,
+    .field select {
+      width: 100%;
+      height: 40px;
+      border: 1px solid rgba(29, 35, 40, 0.16);
+      border-radius: var(--radius);
+      padding: 0 10px;
+      background: rgba(255, 255, 255, 0.78);
+      color: var(--ink);
+      font-weight: 900;
+      outline: none;
+    }
+
+    .field input:focus,
+    .field select:focus {
+      border-color: rgba(31, 143, 139, 0.8);
+      box-shadow: 0 0 0 3px rgba(31, 143, 139, 0.16);
+    }
+
+    .field input[type="color"] {
+      padding: 4px;
+      cursor: pointer;
+    }
+
+    .checkbox-field {
+      min-height: 55px;
+      align-content: end;
+    }
+
+    .checkbox-control {
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(29, 35, 40, 0.16);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.78);
+    }
+
+    .checkbox-control input {
+      width: 20px;
+      height: 20px;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 18px;
+      z-index: 30;
+      translate: -50% 0;
+      min-width: 150px;
+      max-width: calc(100vw - 32px);
+      padding: 11px 14px;
+      border-radius: var(--radius);
+      background: rgba(29, 35, 40, 0.92);
+      color: #fff8ee;
+      text-align: center;
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      box-shadow: 0 10px 24px rgba(29, 35, 40, 0.24);
+    }
+
+    .toast[hidden] {
+      display: none;
+    }
+
+    .win-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 40;
+      display: grid;
+      place-items: center;
+      padding: 18px;
+      background: rgba(27, 24, 21, 0.46);
+      backdrop-filter: blur(5px);
+    }
+
+    .win-overlay[hidden] {
+      display: none;
+    }
+
+    .win-panel {
+      width: min(92vw, 390px);
+      padding: 24px;
+      border-radius: var(--radius);
+      background:
+        linear-gradient(135deg, rgba(244, 191, 69, 0.24), transparent 50%),
+        #fffaf0;
+      box-shadow: 0 24px 70px rgba(20, 15, 11, 0.38);
+      text-align: center;
+      border: 1px solid rgba(29, 35, 40, 0.12);
+    }
+
+    .win-panel h2 {
+      margin: 0 0 10px;
+      font-size: clamp(27px, 8vw, 42px);
+      line-height: 0.96;
+      letter-spacing: 0;
+    }
+
+    .win-panel p {
+      margin: 0 0 18px;
+      color: var(--muted);
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-size: 12px;
+    }
+
+    .primary-button {
+      height: 44px;
+      min-width: 134px;
+      border: 0;
+      border-radius: var(--radius);
+      background: var(--accent);
+      color: white;
+      font-weight: 900;
+      cursor: pointer;
+      box-shadow: 0 10px 22px rgba(31, 143, 139, 0.24);
+      transition: transform 140ms ease, background 140ms ease;
+    }
+
+    .primary-button:hover {
+      transform: translateY(-1px);
+      background: #177a76;
+    }
+
+    .primary-button:active {
+      transform: translateY(0);
+    }
+
+    @keyframes orderSlideIn {
+      0% {
+        transform: translateX(54px) scale(0.92);
+        opacity: 0;
+      }
+
+      100% {
+        transform: translateX(0) scale(1);
+        opacity: 1;
+      }
+    }
+
+    @keyframes orderExit {
+      0% {
+        transform: translateX(0) scale(1);
+        opacity: 1;
+      }
+
+      100% {
+        transform: translateX(-42px) scale(0.88);
+        opacity: 0;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .app {
+        padding: 10px 9px 12px;
+        gap: 8px;
+      }
+
+      .topbar {
+        gap: 8px;
+      }
+
+      .status {
+        display: grid;
+        gap: 3px;
+      }
+
+      .objective {
+        font-size: 11px;
+      }
+
+      .counter {
+        display: none;
+      }
+
+      .builder-panel {
+        top: 62px;
+        padding: 10px;
+      }
+
+      .level-form {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .level-form .primary-button {
+        grid-column: 1 / -1;
+      }
+
+      .board {
+        width: 100%;
+        height: min(calc(100vh - 78px), 760px);
+        gap: 6px;
+        padding: 7px;
+      }
+
+      .app.has-orders .board {
+        height: min(calc(100vh - 182px), 650px);
+      }
+
+      .orders-area {
+        gap: 6px;
+      }
+
+      .strip-label {
+        width: 46px;
+      }
+
+      .order-card {
+        min-width: 60px;
+        height: 50px;
+        padding: 5px 6px;
+      }
+
+      .order-icon,
+      .dock-icon {
+        width: 34px;
+      }
+
+      .dock-slot {
+        width: 40px;
+        height: 40px;
+      }
+
+      .back-row {
+        inset: 12% 7% 43%;
+        gap: 4px;
+      }
+
+      .slot-row {
+        inset: 30% 7% 7%;
+        gap: 4px;
+      }
+
+      .item {
+        width: min(102%, 70px);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        animation-duration: 1ms !important;
+        scroll-behavior: auto !important;
+        transition-duration: 1ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="status">
+        <h1 class="title">Goods Merge</h1>
+        <div class="objective">Clear the board</div>
+      </div>
+      <div class="hud">
+        <button class="icon-button" id="panelButton" type="button" aria-label="Level builder" title="Level builder" aria-expanded="false">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4 21v-7"></path>
+            <path d="M4 10V3"></path>
+            <path d="M12 21v-9"></path>
+            <path d="M12 8V3"></path>
+            <path d="M20 21v-5"></path>
+            <path d="M20 12V3"></path>
+            <path d="M2 14h4"></path>
+            <path d="M10 8h4"></path>
+            <path d="M18 16h4"></path>
+          </svg>
+        </button>
+        <div class="counter" aria-live="polite"><small>Level</small><span id="levelNumber">1</span></div>
+        <div class="counter" aria-live="polite"><small>Moves</small><span id="moveCount">0</span></div>
+        <button class="icon-button" id="restartButton" type="button" aria-label="Restart" title="Restart">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M3 12a9 9 0 1 0 3-6.7"></path>
+            <path d="M3 4v6h6"></path>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <section class="builder-panel" id="builderPanel" hidden>
+      <form class="level-form" id="levelForm" novalidate>
+        <label class="field">
+          <span>Mode</span>
+          <select id="modeInput">
+            <option value="normal">Normal</option>
+            <option value="orders">Orders</option>
+            <option value="dockAndOrders">DockAndOrders</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Shelves</span>
+          <input id="shelfInput" type="number" min="3" max="18" value="18" inputmode="numeric">
+        </label>
+        <label class="field">
+          <span>Objects</span>
+          <input id="targetInput" type="number" min="1" max="50" value="5" inputmode="numeric">
+        </label>
+        <label class="field">
+          <span>Types</span>
+          <input id="typeInput" type="number" min="1" max="25" value="5" inputmode="numeric">
+        </label>
+        <label class="field">
+          <span>Spaces</span>
+          <input id="spaceInput" type="number" min="0" max="36" value="6" inputmode="numeric">
+        </label>
+        <label class="field">
+          <span>Stages</span>
+          <select id="stageInput">
+            <option value="1">1</option>
+            <option value="1-2">1 ve 2</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="1-2-3">1 ve 2 ve 3</option>
+            <option value="2-3">2 ve 3</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Edge</span>
+          <input id="edgeColorInput" type="color" value="#8a5a3c">
+        </label>
+        <label class="field">
+          <span>Inside</span>
+          <input id="insideColorInput" type="color" value="#d8b995">
+        </label>
+        <label class="field">
+          <span>Base</span>
+          <input id="baseColorInput" type="color" value="#caa982">
+        </label>
+        <label class="field" data-mode-field="orders" hidden>
+          <span>Order Count</span>
+          <input id="orderCountInput" type="number" min="1" max="8" value="3" inputmode="numeric">
+        </label>
+        <label class="field" data-mode-field="orders" hidden>
+          <span>Items / Order</span>
+          <input id="orderItemCountInput" type="number" min="1" max="5" value="1" inputmode="numeric">
+        </label>
+        <label class="field" data-mode-field="dock" hidden>
+          <span>Dock Positions</span>
+          <input id="dockPositionInput" type="number" min="1" max="12" value="5" inputmode="numeric">
+        </label>
+        <label class="field checkbox-field" data-mode-field="orders" hidden>
+          <span>Triple 3rd</span>
+          <span class="checkbox-control">
+            <input id="tripleThirdInput" type="checkbox" aria-label="Triple 3rd">
+          </span>
+        </label>
+        <button class="primary-button" id="generateButton" type="submit">Generate</button>
+      </form>
+    </section>
+
+    <section class="orders-area" id="ordersArea" hidden aria-live="polite">
+      <div class="orders-strip">
+        <div class="strip-label">Orders</div>
+        <div class="orders-track" id="ordersTrack"></div>
+      </div>
+      <div class="dock-strip" id="dockStrip" hidden>
+        <div class="strip-label">Dock</div>
+        <div class="dock-track" id="dockTrack"></div>
+      </div>
+    </section>
+
+    <main class="stage" aria-label="Goods Merge board">
+      <div class="board" id="board"></div>
+    </main>
+  </div>
+
+  <div class="toast" id="toast" hidden></div>
+
+  <div class="win-overlay" id="winOverlay" hidden>
+    <section class="win-panel" aria-live="assertive">
+      <h2>CLEAR THE BOARD</h2>
+      <p id="winStats">Level complete</p>
+      <button class="primary-button" id="nextButton" type="button">Next Level</button>
+    </section>
+  </div>
+
+  <script>
+    const BOARD_SHELF_COUNT = 18;
+    const DEFAULT_SHELF_COUNT = 18;
+    const SLOTS_PER_SHELF = 3;
+    const MAX_STAGE = 2;
+    const MERGE_TIME = 330;
+    const DELIVERY_TIME = 440;
+    const ORDER_EXIT_DELAY = 320;
+    const GAME_MODES = {
+      NORMAL: "normal",
+      ORDERS: "orders",
+      DOCK_AND_ORDERS: "dockAndOrders"
+    };
+    const STAGE_VALUES = [1, 3, 9];
+
+    const ITEMS = [
+      { id: "mug", name: "Mug", color: "#4aa7c8", accent: "#e95f50" },
+      { id: "plant", name: "Plant", color: "#55a868", accent: "#d97f42" },
+      { id: "shoe", name: "Sneaker", color: "#7a65c7", accent: "#f0be3d" },
+      { id: "camera", name: "Camera", color: "#343a40", accent: "#4fb3a6" },
+      { id: "lamp", name: "Lamp", color: "#f2b84b", accent: "#536d9f" },
+      { id: "gem", name: "Gem", color: "#4cb7dd", accent: "#d95fb1" },
+      { id: "book", name: "Book", color: "#d35b6a", accent: "#f4c95d" },
+      { id: "cap", name: "Cap", color: "#3f7ecb", accent: "#f19a3e" },
+      { id: "watch", name: "Watch", color: "#6f7d8c", accent: "#78c2ad" },
+      { id: "perfume", name: "Perfume", color: "#c770b8", accent: "#68b9d8" },
+      { id: "ball", name: "Ball", color: "#ef7b45", accent: "#2f8f83" },
+      { id: "bag", name: "Bag", color: "#b46a44", accent: "#f0c35a" },
+      { id: "bottle", name: "Bottle", color: "#53a678", accent: "#e9d985" },
+      { id: "headphones", name: "Headphones", color: "#5968b1", accent: "#e15f63" },
+      { id: "controller", name: "Controller", color: "#505a64", accent: "#6cc4a1" },
+      { id: "donut", name: "Donut", color: "#d8799f", accent: "#f1c65a" },
+      { id: "rocket", name: "Rocket", color: "#e7664d", accent: "#5aa9d6" },
+      { id: "pencil", name: "Pencil", color: "#edbd43", accent: "#e95c50" },
+      { id: "gift", name: "Gift", color: "#65a6d9", accent: "#e65f6f" },
+      { id: "glasses", name: "Glasses", color: "#3a3f46", accent: "#59b8a6" },
+      { id: "clock", name: "Clock", color: "#f1b24a", accent: "#5877c5" },
+      { id: "key", name: "Key", color: "#d6a643", accent: "#5f7480" },
+      { id: "brush", name: "Brush", color: "#7d65c7", accent: "#f0a344" },
+      { id: "cupcake", name: "Cupcake", color: "#e988a5", accent: "#8cc36d" },
+      { id: "phone", name: "Phone", color: "#39424d", accent: "#60c2d5" }
+    ];
+
+    const STAGE_OPTIONS = {
+      "1": [0],
+      "1-2": [0, 1],
+      "2": [1],
+      "3": [2],
+      "1-2-3": [0, 1, 2],
+      "2-3": [1, 2]
+    };
+
+    const boardEl = document.getElementById("board");
+    const appEl = document.querySelector(".app");
+    const levelEl = document.getElementById("levelNumber");
+    const moveEl = document.getElementById("moveCount");
+    const objectiveEl = document.querySelector(".objective");
+    const panelButton = document.getElementById("panelButton");
+    const builderPanel = document.getElementById("builderPanel");
+    const levelForm = document.getElementById("levelForm");
+    const modeInput = document.getElementById("modeInput");
+    const shelfInput = document.getElementById("shelfInput");
+    const targetInput = document.getElementById("targetInput");
+    const typeInput = document.getElementById("typeInput");
+    const spaceInput = document.getElementById("spaceInput");
+    const stageInput = document.getElementById("stageInput");
+    const edgeColorInput = document.getElementById("edgeColorInput");
+    const insideColorInput = document.getElementById("insideColorInput");
+    const baseColorInput = document.getElementById("baseColorInput");
+    const orderCountInput = document.getElementById("orderCountInput");
+    const orderItemCountInput = document.getElementById("orderItemCountInput");
+    const dockPositionInput = document.getElementById("dockPositionInput");
+    const tripleThirdInput = document.getElementById("tripleThirdInput");
+    const ordersArea = document.getElementById("ordersArea");
+    const ordersTrack = document.getElementById("ordersTrack");
+    const dockStrip = document.getElementById("dockStrip");
+    const dockTrack = document.getElementById("dockTrack");
+    const restartButton = document.getElementById("restartButton");
+    const nextButton = document.getElementById("nextButton");
+    const winOverlay = document.getElementById("winOverlay");
+    const winStats = document.getElementById("winStats");
+    const toast = document.getElementById("toast");
+
+    let shelfCount = DEFAULT_SHELF_COUNT;
+    let layers = [createEmptyBoard()];
+    let board = layers[0];
+    let backBoard = createEmptyBoard();
+    let initialLayers = cloneLayers(layers);
+    let initialOrderState = null;
+    let selected = null;
+    let moves = 0;
+    let level = 1;
+    let uid = 1;
+    let orderUid = 1;
+    let isAnimating = false;
+    let levelFailed = false;
+    let dragState = null;
+    let toastTimer = null;
+    let activeOrders = [];
+    let orderQueue = [];
+    let dockItems = [];
+    let incomingOrderIds = new Set();
+    let totalDeliveries = 0;
+    let completedDeliveries = 0;
+    let levelConfig = {
+      gameMode: GAME_MODES.NORMAL,
+      shelfCount: DEFAULT_SHELF_COUNT,
+      finalItems: 5,
+      typeCount: 5,
+      emptySlots: 6,
+      stageMode: "1",
+      stages: STAGE_OPTIONS["1"],
+      orderCount: 3,
+      orderItemCount: 1,
+      dockPositionCount: 5,
+      tripleThird: false
+    };
+
+    function createEmptyBoard(count = shelfCount) {
+      return Array.from({ length: count }, () => Array(SLOTS_PER_SHELF).fill(null));
+    }
+
+    function cloneBoard(source) {
+      return source.map((shelf) => shelf.map((item) => item ? { ...item } : null));
+    }
+
+    function cloneLayers(source) {
+      return source.map((layer) => cloneBoard(layer));
+    }
+
+    function cloneOrders(source) {
+      return source.map((order) => ({
+        id: order.id,
+        items: order.items.map((item) => ({ ...item }))
+      }));
+    }
+
+    function cloneDockItems(source) {
+      return source.map((item) => ({ ...item }));
+    }
+
+    function captureOrderState() {
+      return {
+        activeOrders: cloneOrders(activeOrders),
+        orderQueue: cloneOrders(orderQueue),
+        dockItems: cloneDockItems(dockItems),
+        totalDeliveries,
+        completedDeliveries
+      };
+    }
+
+    function restoreOrderState(state) {
+      activeOrders = cloneOrders(state?.activeOrders || []);
+      orderQueue = cloneOrders(state?.orderQueue || []);
+      dockItems = cloneDockItems(state?.dockItems || []);
+      totalDeliveries = state?.totalDeliveries || 0;
+      completedDeliveries = state?.completedDeliveries || 0;
+    }
+
+    function syncLayerAliases() {
+      if (!layers.length) {
+        layers = [createEmptyBoard()];
+      }
+      board = layers[0];
+      backBoard = layers[1] || createEmptyBoard(shelfCount);
+    }
+
+    function clampInt(value, min, max) {
+      const number = Number.parseInt(value, 10);
+      if (Number.isNaN(number)) {
+        return min;
+      }
+      return Math.min(max, Math.max(min, number));
+    }
+
+    function mulberry32(seed) {
+      return function random() {
+        seed |= 0;
+        seed = seed + 0x6d2b79f5 | 0;
+        let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+        t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+      };
+    }
+
+    function shuffle(list, random) {
+      const copy = [...list];
+      for (let i = copy.length - 1; i > 0; i -= 1) {
+        const j = Math.floor(random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+      }
+      return copy;
+    }
+
+    function isOrderMode(mode = levelConfig.gameMode) {
+      return mode === GAME_MODES.ORDERS || mode === GAME_MODES.DOCK_AND_ORDERS;
+    }
+
+    function hasDock(mode = levelConfig.gameMode) {
+      return mode === GAME_MODES.DOCK_AND_ORDERS;
+    }
+
+    function getMinimumObjectSets(stageMode, shelves) {
+      const stages = STAGE_OPTIONS[stageMode] || STAGE_OPTIONS["1"];
+      const recipes = getRecipesForStages(stages);
+      const richestRecipe = recipes[0];
+      if (!richestRecipe) {
+        return 1;
+      }
+      return Math.max(1, Math.ceil(shelves / richestRecipe.total));
+    }
+
+    function readConfigFromForm() {
+      const requestedMode = Object.values(GAME_MODES).includes(modeInput.value) ? modeInput.value : GAME_MODES.NORMAL;
+      const requestedShelves = clampInt(shelfInput.value, 3, BOARD_SHELF_COUNT);
+      const stageMode = STAGE_OPTIONS[stageInput.value] ? stageInput.value : "1";
+      const minObjectSets = getMinimumObjectSets(stageMode, requestedShelves);
+      const requestedFinalItems = clampInt(targetInput.value, minObjectSets, 50);
+      const requestedTypes = clampInt(typeInput.value, 1, ITEMS.length);
+      const normalizedTypes = Math.min(requestedTypes, requestedFinalItems, ITEMS.length);
+      const maxEmptySlots = requestedShelves * SLOTS_PER_SHELF - requestedShelves;
+      const requestedEmptySlots = clampInt(spaceInput.value, 0, maxEmptySlots);
+      const orderCount = clampInt(orderCountInput.value, 1, 8);
+      const orderItemCount = clampInt(orderItemCountInput.value, 1, Math.min(5, Math.max(1, normalizedTypes)));
+      const dockPositionCount = clampInt(dockPositionInput.value, 1, 12);
+      modeInput.value = requestedMode;
+      shelfInput.value = String(requestedShelves);
+      targetInput.min = String(minObjectSets);
+      targetInput.value = String(requestedFinalItems);
+      typeInput.value = String(normalizedTypes);
+      spaceInput.max = String(maxEmptySlots);
+      spaceInput.value = String(requestedEmptySlots);
+      stageInput.value = stageMode;
+      orderCountInput.value = String(orderCount);
+      orderItemCountInput.max = String(Math.min(5, Math.max(1, normalizedTypes)));
+      orderItemCountInput.value = String(orderItemCount);
+      dockPositionInput.value = String(dockPositionCount);
+      return {
+        gameMode: requestedMode,
+        shelfCount: requestedShelves,
+        finalItems: requestedFinalItems,
+        typeCount: normalizedTypes,
+        emptySlots: requestedEmptySlots,
+        stageMode,
+        stages: [...STAGE_OPTIONS[stageMode]],
+        orderCount,
+        orderItemCount,
+        dockPositionCount,
+        tripleThird: isOrderMode(requestedMode) && tripleThirdInput.checked
+      };
+    }
+
+    function syncTypeLimit() {
+      const target = clampInt(targetInput.value, 1, 50);
+      typeInput.max = String(Math.min(ITEMS.length, target));
+      if (Number(typeInput.value) > Number(typeInput.max)) {
+        typeInput.value = typeInput.max;
+      }
+      orderItemCountInput.max = String(Math.min(5, Math.max(1, Number(typeInput.value) || 1)));
+      if (Number(orderItemCountInput.value) > Number(orderItemCountInput.max)) {
+        orderItemCountInput.value = orderItemCountInput.max;
+      }
+    }
+
+    function syncObjectLimit() {
+      const shelves = clampInt(shelfInput.value, 3, BOARD_SHELF_COUNT);
+      const stageMode = STAGE_OPTIONS[stageInput.value] ? stageInput.value : "1";
+      const minObjectSets = getMinimumObjectSets(stageMode, shelves);
+      targetInput.min = String(minObjectSets);
+      if (Number(targetInput.value) < minObjectSets) {
+        targetInput.value = String(minObjectSets);
+      }
+      syncTypeLimit();
+    }
+
+    function syncSpaceLimit() {
+      const shelves = clampInt(shelfInput.value, 3, BOARD_SHELF_COUNT);
+      const maxEmptySlots = shelves * SLOTS_PER_SHELF - shelves;
+      spaceInput.max = String(maxEmptySlots);
+      if (Number(spaceInput.value) > maxEmptySlots) {
+        spaceInput.value = String(maxEmptySlots);
+      }
+    }
+
+    function applyShelfColors() {
+      document.documentElement.style.setProperty("--shelf-edge", edgeColorInput.value);
+      document.documentElement.style.setProperty("--shelf-inside", insideColorInput.value);
+      document.documentElement.style.setProperty("--shelf-base", baseColorInput.value);
+    }
+
+    function syncModeFields() {
+      const mode = Object.values(GAME_MODES).includes(modeInput.value) ? modeInput.value : GAME_MODES.NORMAL;
+      const showOrders = isOrderMode(mode);
+      const showDock = hasDock(mode);
+      document.querySelectorAll("[data-mode-field='orders']").forEach((field) => {
+        field.hidden = !showOrders;
+      });
+      document.querySelectorAll("[data-mode-field='dock']").forEach((field) => {
+        field.hidden = !showDock;
+      });
+    }
+
+    function newLevel(config = levelConfig, nextLevel = level) {
+      const seed = (Date.now() ^ Math.floor(Math.random() * 0xffffffff) ^ (nextLevel * 2654435761)) >>> 0;
+      const generated = generateLevel(nextLevel, seed, config);
+      if (!generated) {
+        showToast("Need more items");
+        return false;
+      }
+
+      level = nextLevel;
+      levelConfig = { ...config };
+      shelfCount = config.shelfCount;
+      layers = generated.layers;
+      activeOrders = cloneOrders(generated.activeOrders || []);
+      orderQueue = cloneOrders(generated.orderQueue || []);
+      dockItems = [];
+      incomingOrderIds = new Set();
+      totalDeliveries = generated.totalDeliveries || 0;
+      completedDeliveries = 0;
+      trimEmptyLayers();
+      syncLayerAliases();
+      levelFailed = false;
+      selected = null;
+      moves = 0;
+      isAnimating = false;
+      winOverlay.hidden = true;
+      nextButton.textContent = "Next Level";
+      processAutoCollections({ render: false, check: false, animate: false });
+      initialLayers = cloneLayers(layers);
+      initialOrderState = captureOrderState();
+      syncHud();
+      updateBoardLayout();
+      renderBoard();
+      if (!levelFailed) {
+        queueMergeCheck();
+      }
+      return true;
+    }
+
+    function restartLevel() {
+      layers = cloneLayers(initialLayers);
+      restoreOrderState(initialOrderState);
+      incomingOrderIds = new Set();
+      trimEmptyLayers();
+      syncLayerAliases();
+      selected = null;
+      moves = 0;
+      isAnimating = false;
+      levelFailed = false;
+      winOverlay.hidden = true;
+      nextButton.textContent = "Next Level";
+      syncHud();
+      updateBoardLayout();
+      renderBoard();
+      queueMergeCheck();
+      showToast("Restart");
+    }
+
+    function updateBoardLayout() {
+      boardEl.style.setProperty("--shelf-cols", "3");
+      boardEl.style.setProperty("--shelf-rows", "6");
+    }
+
+    function getEmptyFrontCount(count, requestedEmptySlots = levelConfig.emptySlots) {
+      const maxEmptySlots = count * SLOTS_PER_SHELF - count;
+      return Math.min(maxEmptySlots, Math.max(0, requestedEmptySlots));
+    }
+
+    function getLayerCapacity(count) {
+      return Number.POSITIVE_INFINITY;
+    }
+
+    function generateLevel(levelNumber, seed, config) {
+      const random = mulberry32(seed);
+      const itemSet = buildSourceItems(levelNumber, config, random);
+      if (!itemSet) {
+        return null;
+      }
+
+      for (let attempt = 0; attempt < 260; attempt += 1) {
+        const placed = placeItemsInLayers(itemSet, config.shelfCount, random, config.emptySlots);
+        if (!placed) {
+          return null;
+        }
+        if (!hasInitialMerge(placed.layers[0]) || attempt > 120) {
+          return attachOrderState(placed, config, random);
+        }
+      }
+
+      const placed = placeItemsInLayers(itemSet, config.shelfCount, random, config.emptySlots);
+      return placed ? attachOrderState(placed, config, random) : null;
+    }
+
+    function buildSourceItems(levelNumber, config, random) {
+      const recipes = getRecipesForStages(config.stages);
+      if (!recipes.length) {
+        return null;
+      }
+
+      const richestRecipe = [...recipes].sort((a, b) => b.total - a.total)[0];
+      const selectedRecipes = Array.from({ length: config.finalItems }, () => recipes[Math.floor(random() * recipes.length)]);
+      let totalItems = selectedRecipes.reduce((sum, recipe) => sum + recipe.total, 0);
+
+      shuffle(Array.from({ length: selectedRecipes.length }, (_, index) => index), random).forEach((index) => {
+        if (totalItems >= config.shelfCount) {
+          return;
+        }
+        const current = selectedRecipes[index];
+        if (richestRecipe.total > current.total) {
+          selectedRecipes[index] = richestRecipe;
+          totalItems += richestRecipe.total - current.total;
+        }
+      });
+
+      if (selectedRecipes.every((recipe) => recipe.counts[2] === 1) && richestRecipe.total > 1) {
+        selectedRecipes[0] = richestRecipe;
+        totalItems = selectedRecipes.reduce((sum, recipe) => sum + recipe.total, 0);
+      }
+
+      if (totalItems < config.shelfCount) {
+        return null;
+      }
+
+      const products = shuffle(ITEMS, random).slice(0, config.typeCount);
+      const sourceItems = [];
+
+      for (let finalIndex = 0; finalIndex < config.finalItems; finalIndex += 1) {
+        const product = products[finalIndex % products.length];
+        selectedRecipes[finalIndex].counts.forEach((count, stage) => {
+          for (let i = 0; i < count; i += 1) {
+            sourceItems.push({
+              uid: `i${levelNumber}-${finalIndex}-${stage}-${i}-${uid++}`,
+              type: product.id,
+              stage
+            });
+          }
+        });
+      }
+
+      return shuffle(sourceItems, random);
+    }
+
+    function getRecipesForStages(stages) {
+      const allowed = new Set(stages);
+      const recipes = [];
+      for (let stage0 = 0; stage0 <= 27; stage0 += 1) {
+        for (let stage1 = 0; stage1 <= 9; stage1 += 1) {
+          for (let stage2 = 0; stage2 <= 3; stage2 += 1) {
+            const counts = [stage0, stage1, stage2];
+            const usesOnlyAllowedStages = counts.every((count, stage) => count === 0 || allowed.has(stage));
+            const value = stage0 + stage1 * 3 + stage2 * 9;
+            const total = stage0 + stage1 + stage2;
+            if (usesOnlyAllowedStages && value === 27 && total > 0) {
+              recipes.push({ counts, total });
+            }
+          }
+        }
+      }
+      return recipes.sort((a, b) => b.total - a.total);
+    }
+
+    function placeItemsInLayers(items, count, random, emptySlots = levelConfig.emptySlots) {
+      const frontCapacity = count * SLOTS_PER_SHELF;
+      if (items.length < count) {
+        return null;
+      }
+
+      const emptyFront = getEmptyFrontCount(count, emptySlots);
+      const occupiedSlotCount = Math.min(items.length, frontCapacity - emptyFront);
+      if (occupiedSlotCount < count) {
+        return null;
+      }
+
+      const occupiedSlots = [];
+      for (let shelfIndex = 0; shelfIndex < count; shelfIndex += 1) {
+        occupiedSlots.push(shelfIndex * SLOTS_PER_SHELF + Math.floor(random() * SLOTS_PER_SHELF));
+      }
+
+      const occupiedSet = new Set(occupiedSlots);
+      const remainingSlots = shuffle(Array.from({ length: frontCapacity }, (_, index) => index).filter((slot) => !occupiedSet.has(slot)), random);
+      while (occupiedSlots.length < occupiedSlotCount && remainingSlots.length) {
+        occupiedSlots.push(remainingSlots.pop());
+      }
+
+      const stacks = new Map(occupiedSlots.map((slot) => [slot, []]));
+      const shuffledItems = shuffle(items, random);
+      occupiedSlots.forEach((slot, index) => {
+        stacks.get(slot).push({ ...shuffledItems[index] });
+      });
+
+      const stackOrder = shuffle(occupiedSlots, random);
+      for (let index = occupiedSlots.length; index < shuffledItems.length; index += 1) {
+        const slot = stackOrder[(index - occupiedSlots.length) % stackOrder.length];
+        stacks.get(slot).push({ ...shuffledItems[index] });
+      }
+
+      const maxDepth = Math.max(...Array.from(stacks.values()).map((stack) => stack.length));
+      const generatedLayers = Array.from({ length: maxDepth }, () => createEmptyBoard(count));
+      stacks.forEach((stack, flatSlot) => {
+        const shelfIndex = Math.floor(flatSlot / SLOTS_PER_SHELF);
+        const slotIndex = flatSlot % SLOTS_PER_SHELF;
+        stack.forEach((item, depth) => {
+          generatedLayers[depth][shelfIndex][slotIndex] = item;
+        });
+      });
+
+      return { layers: generatedLayers };
+    }
+
+    function attachOrderState(placed, config, random) {
+      if (!isOrderMode(config.gameMode)) {
+        return {
+          ...placed,
+          activeOrders: [],
+          orderQueue: [],
+          totalDeliveries: 0
+        };
+      }
+
+      const demand = buildDeliveryDemand(placed.layers, config);
+      const allOrders = buildOrderQueue(demand, config, random);
+      return {
+        ...placed,
+        activeOrders: allOrders.slice(0, config.orderCount),
+        orderQueue: allOrders.slice(config.orderCount),
+        totalDeliveries: Array.from(demand.values()).reduce((sum, count) => sum + count, 0)
+      };
+    }
+
+    function buildDeliveryDemand(sourceLayers, config) {
+      const valuePerDelivery = config.tripleThird ? 27 : 9;
+      const valueByType = new Map();
+      sourceLayers.forEach((layer) => {
+        layer.forEach((shelf) => {
+          shelf.forEach((item) => {
+            if (!item) {
+              return;
+            }
+            valueByType.set(item.type, (valueByType.get(item.type) || 0) + STAGE_VALUES[item.stage]);
+          });
+        });
+      });
+
+      const demand = new Map();
+      valueByType.forEach((value, type) => {
+        const count = Math.max(1, Math.round(value / valuePerDelivery));
+        demand.set(type, count);
+      });
+      return demand;
+    }
+
+    function buildOrderQueue(demand, config, random) {
+      const remaining = new Map(demand);
+      const orders = [];
+      let total = Array.from(remaining.values()).reduce((sum, count) => sum + count, 0);
+      while (total > 0) {
+        const availableTypes = shuffle(Array.from(remaining.keys()).filter((type) => remaining.get(type) > 0), random);
+        const itemCount = Math.min(config.orderItemCount, availableTypes.length);
+        const orderTypes = availableTypes.slice(0, itemCount);
+        orderTypes.forEach((type) => {
+          remaining.set(type, remaining.get(type) - 1);
+          total -= 1;
+        });
+        orders.push({
+          id: `o${level}-${orderUid++}`,
+          items: orderTypes.map((type) => ({ type, filled: false }))
+        });
+      }
+      return orders;
+    }
+
+    function hasInitialMerge(candidate) {
+      return candidate.some((shelf) => isMergeShelf(shelf));
+    }
+
+    function isMergeShelf(shelf) {
+      if (shelf.some((item) => !item)) {
+        return false;
+      }
+      const [first] = shelf;
+      if (first.stage === MAX_STAGE && isOrderMode()) {
+        if (!levelConfig.tripleThird || shelf.some((item) => item.ready)) {
+          return false;
+        }
+      }
+      return shelf.every((item) => item.type === first.type && item.stage === first.stage);
+    }
+
+    function trimEmptyLayers() {
+      while (layers.length > 1 && !layers[layers.length - 1].flat().some(Boolean)) {
+        layers.pop();
+      }
+      syncLayerAliases();
+    }
+
+    function getNextLayerItem(shelfIndex, slotIndex) {
+      for (let depth = 1; depth < layers.length; depth += 1) {
+        const item = layers[depth]?.[shelfIndex]?.[slotIndex];
+        if (item) {
+          return item;
+        }
+      }
+      return null;
+    }
+
+    function syncHud() {
+      levelEl.textContent = String(level);
+      moveEl.textContent = String(moves);
+      if (isOrderMode()) {
+        const dockText = hasDock() ? ` · Dock ${dockItems.length}/${levelConfig.dockPositionCount}` : "";
+        objectiveEl.textContent = `Orders ${completedDeliveries}/${totalDeliveries}${dockText}`;
+      } else {
+        objectiveEl.textContent = `Clear ${levelConfig.finalItems} object sets`;
+      }
+      modeInput.value = levelConfig.gameMode;
+      shelfInput.value = String(levelConfig.shelfCount);
+      targetInput.min = String(getMinimumObjectSets(levelConfig.stageMode, levelConfig.shelfCount));
+      targetInput.value = String(levelConfig.finalItems);
+      typeInput.value = String(levelConfig.typeCount);
+      spaceInput.max = String(levelConfig.shelfCount * SLOTS_PER_SHELF - levelConfig.shelfCount);
+      spaceInput.value = String(levelConfig.emptySlots);
+      stageInput.value = levelConfig.stageMode;
+      orderCountInput.value = String(levelConfig.orderCount);
+      orderItemCountInput.max = String(Math.min(5, Math.max(1, levelConfig.typeCount)));
+      orderItemCountInput.value = String(levelConfig.orderItemCount);
+      dockPositionInput.value = String(levelConfig.dockPositionCount);
+      tripleThirdInput.checked = Boolean(levelConfig.tripleThird);
+      syncTypeLimit();
+      syncObjectLimit();
+      syncModeFields();
+    }
+
+    function renderBoard() {
+      boardEl.innerHTML = "";
+      const selectedItem = getSelectedItem();
+
+      for (let shelfIndex = 0; shelfIndex < BOARD_SHELF_COUNT; shelfIndex += 1) {
+        if (shelfIndex >= shelfCount) {
+          const shelfSpaceEl = document.createElement("div");
+          shelfSpaceEl.className = "shelf-space";
+          shelfSpaceEl.setAttribute("aria-hidden", "true");
+          boardEl.appendChild(shelfSpaceEl);
+          continue;
+        }
+
+        const shelf = board[shelfIndex];
+        const shelfEl = document.createElement("section");
+        shelfEl.className = "shelf";
+        shelfEl.dataset.shelf = shelfIndex;
+        shelfEl.setAttribute("aria-label", `Shelf ${shelfIndex + 1}`);
+
+        const backRowEl = document.createElement("div");
+        backRowEl.className = "back-row";
+
+        shelf.forEach((frontItem, slotIndex) => {
+          const backSlotEl = document.createElement("div");
+          backSlotEl.className = "back-slot";
+          const item = getNextLayerItem(shelfIndex, slotIndex);
+          if (item) {
+            const backItemEl = document.createElement("div");
+            backItemEl.className = `back-item stage-${item.stage}`;
+            backItemEl.setAttribute("aria-hidden", "true");
+            backItemEl.innerHTML = renderIcon(item);
+            backSlotEl.appendChild(backItemEl);
+          }
+          backRowEl.appendChild(backSlotEl);
+        });
+
+        const rowEl = document.createElement("div");
+        rowEl.className = "slot-row";
+
+        shelf.forEach((item, slotIndex) => {
+          const slotEl = document.createElement("div");
+          const slotClasses = ["slot"];
+          if (!item) {
+            slotClasses.push("is-empty");
+          }
+          if (selectedItem && !item) {
+            slotClasses.push("can-target");
+            if (wouldCompleteMerge(shelfIndex, selectedItem)) {
+              slotClasses.push("merge-target");
+            }
+          }
+          if (dragState && dragState.sourceShelf === shelfIndex && dragState.sourceSlot === slotIndex) {
+            slotClasses.push("is-drag-source");
+          }
+          slotEl.className = slotClasses.join(" ");
+          slotEl.dataset.shelf = shelfIndex;
+          slotEl.dataset.slot = slotIndex;
+          slotEl.addEventListener("click", onSlotClick);
+          if (!item) {
+            slotEl.setAttribute("role", "button");
+            slotEl.setAttribute("tabindex", "0");
+            slotEl.setAttribute("aria-label", `Empty, shelf ${shelfIndex + 1}, slot ${slotIndex + 1}`);
+            slotEl.addEventListener("keydown", onSlotKeydown);
+          }
+
+          if (item) {
+            const itemEl = document.createElement("div");
+            itemEl.className = `item stage-${item.stage}${selected && selected.shelf === shelfIndex && selected.slot === slotIndex ? " is-selected" : ""}`;
+            itemEl.dataset.shelf = shelfIndex;
+            itemEl.dataset.slot = slotIndex;
+            itemEl.dataset.uid = item.uid;
+            itemEl.setAttribute("role", "button");
+            itemEl.setAttribute("tabindex", "0");
+            itemEl.setAttribute("aria-label", `${getItemMeta(item.type).name}, stage ${item.stage + 1}`);
+            itemEl.innerHTML = renderIcon(item);
+            itemEl.addEventListener("pointerdown", onItemPointerDown);
+            itemEl.addEventListener("keydown", onItemKeydown);
+            slotEl.appendChild(itemEl);
+          }
+
+          rowEl.appendChild(slotEl);
+        });
+
+        shelfEl.appendChild(backRowEl);
+        shelfEl.appendChild(rowEl);
+        boardEl.appendChild(shelfEl);
+      }
+      renderOrdersPanel();
+    }
+
+    function renderOrdersPanel() {
+      const showOrders = isOrderMode();
+      appEl.classList.toggle("has-orders", showOrders);
+      ordersArea.hidden = !showOrders;
+      if (!showOrders) {
+        ordersTrack.innerHTML = "";
+        dockTrack.innerHTML = "";
+        return;
+      }
+
+      ordersTrack.innerHTML = "";
+      activeOrders.forEach((order) => {
+        const orderEl = document.createElement("div");
+        const orderClasses = ["order-card"];
+        if (incomingOrderIds.has(order.id)) {
+          orderClasses.push("is-new");
+          window.setTimeout(() => incomingOrderIds.delete(order.id), 900);
+        }
+        orderEl.className = orderClasses.join(" ");
+        orderEl.dataset.orderId = order.id;
+        orderEl.setAttribute("aria-label", "Order");
+        order.items.forEach((orderItem, itemIndex) => {
+          const iconEl = document.createElement("div");
+          iconEl.className = `order-icon${orderItem.filled ? " is-filled" : ""}`;
+          iconEl.dataset.orderId = order.id;
+          iconEl.dataset.orderItemIndex = String(itemIndex);
+          iconEl.dataset.type = orderItem.type;
+          iconEl.innerHTML = renderIcon({ type: orderItem.type, stage: MAX_STAGE });
+          orderEl.appendChild(iconEl);
+        });
+        ordersTrack.appendChild(orderEl);
+      });
+
+      dockStrip.hidden = !hasDock();
+      dockTrack.innerHTML = "";
+      if (!hasDock()) {
+        return;
+      }
+      for (let index = 0; index < levelConfig.dockPositionCount; index += 1) {
+        const dockSlotEl = document.createElement("div");
+        const dockItem = dockItems[index];
+        dockSlotEl.className = `dock-slot${dockItem ? " is-filled" : ""}`;
+        dockSlotEl.dataset.dockIndex = String(index);
+        if (dockItem) {
+          const iconEl = document.createElement("div");
+          iconEl.className = "dock-icon";
+          iconEl.dataset.uid = dockItem.uid;
+          iconEl.innerHTML = renderIcon({ type: dockItem.type, stage: MAX_STAGE });
+          dockSlotEl.appendChild(iconEl);
+        }
+        dockTrack.appendChild(dockSlotEl);
+      }
+    }
+
+    function copyRect(rect) {
+      if (!rect) {
+        return null;
+      }
+      return {
+        left: rect.left,
+        top: rect.top,
+        width: rect.width,
+        height: rect.height
+      };
+    }
+
+    function getElementRect(selector) {
+      return copyRect(document.querySelector(selector)?.getBoundingClientRect());
+    }
+
+    function getBoardItemRect(item, shelfIndex, slotIndex) {
+      if (item?.uid) {
+        const rect = getElementRect(`.item[data-uid="${item.uid}"]`);
+        if (rect) {
+          return rect;
+        }
+      }
+      return copyRect(boardEl.querySelector(`[data-shelf="${shelfIndex}"][data-slot="${slotIndex}"]`)?.getBoundingClientRect());
+    }
+
+    function getMergeSourceRect(shelfIndex) {
+      const shelfEl = boardEl.querySelector(`[data-shelf="${shelfIndex}"]`);
+      const centerItem = shelfEl?.querySelector(".item.merge-center") || shelfEl?.querySelectorAll(".item")[1];
+      return copyRect((centerItem || shelfEl)?.getBoundingClientRect());
+    }
+
+    function getDockSourceRect(index) {
+      const slotEl = dockTrack.querySelector(`.dock-slot[data-dock-index="${index}"]`);
+      return copyRect((slotEl?.querySelector(".dock-icon") || slotEl)?.getBoundingClientRect());
+    }
+
+    function getNextDockTargetRect() {
+      const index = dockItems.length;
+      const slotEl = dockTrack.querySelector(`.dock-slot[data-dock-index="${index}"]`);
+      return copyRect(slotEl?.getBoundingClientRect());
+    }
+
+    function getOrderVisual(orderId, itemIndex) {
+      const iconEl = ordersTrack.querySelector(`.order-icon[data-order-id="${orderId}"][data-order-item-index="${itemIndex}"]`);
+      const cardEl = ordersTrack.querySelector(`.order-card[data-order-id="${orderId}"]`);
+      return {
+        targetRect: copyRect(iconEl?.getBoundingClientRect()),
+        cardRect: copyRect(cardEl?.getBoundingClientRect())
+      };
+    }
+
+    function getFallbackTargetRect() {
+      return copyRect((ordersArea.hidden ? boardEl : ordersArea).getBoundingClientRect());
+    }
+
+    function renderOrderGhostHtml(order) {
+      return order.items.map((orderItem) => `
+        <div class="order-icon${orderItem.filled ? " is-filled" : ""}">
+          ${renderIcon({ type: orderItem.type, stage: MAX_STAGE })}
+        </div>
+      `).join("");
+    }
+
+    function animateItemMovement(item, sourceRect, targetRect) {
+      if (!sourceRect || !targetRect) {
+        return;
+      }
+
+      const size = Math.min(64, Math.max(38, sourceRect.width || 48));
+      const sourceX = sourceRect.left + sourceRect.width / 2;
+      const sourceY = sourceRect.top + sourceRect.height / 2;
+      const targetX = targetRect.left + targetRect.width / 2;
+      const targetY = targetRect.top + targetRect.height / 2;
+      const flyEl = document.createElement("div");
+      flyEl.className = "delivery-fly-item";
+      flyEl.style.width = `${size}px`;
+      flyEl.style.left = `${sourceX - size / 2}px`;
+      flyEl.style.top = `${sourceY - size / 2}px`;
+      flyEl.innerHTML = renderIcon({ type: item.type, stage: MAX_STAGE });
+      document.body.appendChild(flyEl);
+
+      window.requestAnimationFrame(() => {
+        flyEl.style.transform = `translate(${targetX - sourceX}px, ${targetY - sourceY}px) scale(0.62)`;
+        flyEl.style.opacity = "0.16";
+      });
+
+      window.setTimeout(() => {
+        flyEl.remove();
+      }, DELIVERY_TIME + 90);
+    }
+
+    function animateCompletedOrder(cardRect, cardHtml) {
+      if (!cardRect || !cardHtml) {
+        return;
+      }
+
+      window.setTimeout(() => {
+        const ghostEl = document.createElement("div");
+        ghostEl.className = "order-card order-card-ghost";
+        ghostEl.style.left = `${cardRect.left}px`;
+        ghostEl.style.top = `${cardRect.top}px`;
+        ghostEl.style.width = `${cardRect.width}px`;
+        ghostEl.style.height = `${cardRect.height}px`;
+        ghostEl.innerHTML = cardHtml;
+        document.body.appendChild(ghostEl);
+        window.requestAnimationFrame(() => {
+          ghostEl.classList.add("is-exiting");
+        });
+        window.setTimeout(() => {
+          ghostEl.remove();
+        }, 380);
+      }, ORDER_EXIT_DELAY);
+    }
+
+    function onSlotKeydown(event) {
+      if (event.key !== "Enter" && event.key !== " ") {
+        return;
+      }
+      event.preventDefault();
+      if (event.target.closest(".item")) {
+        return;
+      }
+      onSlotClick(event);
+    }
+
+    function onItemKeydown(event) {
+      if (event.key !== "Enter" && event.key !== " ") {
+        return;
+      }
+      event.preventDefault();
+      const shelf = Number(event.currentTarget.dataset.shelf);
+      const slot = Number(event.currentTarget.dataset.slot);
+      selectItem(shelf, slot);
+    }
+
+    function onItemPointerDown(event) {
+      if (isAnimating || event.button !== 0) {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      const itemEl = event.currentTarget;
+      const shelf = Number(itemEl.dataset.shelf);
+      const slot = Number(itemEl.dataset.slot);
+      const item = board[shelf][slot];
+
+      dragState = {
+        pointerId: event.pointerId,
+        sourceShelf: shelf,
+        sourceSlot: slot,
+        item,
+        startX: event.clientX,
+        startY: event.clientY,
+        x: event.clientX,
+        y: event.clientY,
+        active: false,
+        ghost: null
+      };
+
+      itemEl.setPointerCapture(event.pointerId);
+      window.addEventListener("pointermove", onPointerMove);
+      window.addEventListener("pointerup", onPointerUp);
+    }
+
+    function onPointerMove(event) {
+      if (!dragState || event.pointerId !== dragState.pointerId) {
+        return;
+      }
+
+      const dx = event.clientX - dragState.startX;
+      const dy = event.clientY - dragState.startY;
+      if (!dragState.active && Math.hypot(dx, dy) > 7) {
+        dragState.active = true;
+        selected = null;
+        dragState.ghost = createDragGhost(dragState.item, event.clientX, event.clientY);
+        renderBoard();
+      }
+
+      if (dragState.active) {
+        dragState.x = event.clientX;
+        dragState.y = event.clientY;
+        moveGhost(event.clientX, event.clientY);
+      }
+    }
+
+    function onPointerUp(event) {
+      if (!dragState || event.pointerId !== dragState.pointerId) {
+        return;
+      }
+
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
+
+      const drag = dragState;
+      const wasActive = drag.active;
+      removeGhost();
+      dragState = null;
+
+      if (!wasActive) {
+        selectItem(drag.sourceShelf, drag.sourceSlot);
+        return;
+      }
+
+      const targetEl = document.elementFromPoint(event.clientX, event.clientY)?.closest(".slot");
+      if (!targetEl) {
+        renderBoard();
+        return;
+      }
+
+      const targetShelf = Number(targetEl.dataset.shelf);
+      const targetSlot = Number(targetEl.dataset.slot);
+      if (canMoveTo(drag.sourceShelf, drag.sourceSlot, targetShelf, targetSlot)) {
+        moveItem(drag.sourceShelf, drag.sourceSlot, targetShelf, targetSlot);
+      } else {
+        renderBoard();
+      }
+    }
+
+    function createDragGhost(item, x, y) {
+      const ghost = document.createElement("div");
+      ghost.className = "drag-ghost";
+      ghost.innerHTML = renderIcon(item);
+      document.body.appendChild(ghost);
+      moveGhost(x, y);
+      return ghost;
+    }
+
+    function moveGhost(x, y) {
+      if (!dragState?.ghost) {
+        return;
+      }
+      dragState.ghost.style.left = `${x}px`;
+      dragState.ghost.style.top = `${y}px`;
+    }
+
+    function removeGhost() {
+      if (dragState?.ghost) {
+        dragState.ghost.remove();
+      }
+    }
+
+    function onSlotClick(event) {
+      if (isAnimating || event.target.closest(".item")) {
+        return;
+      }
+      const targetShelf = Number(event.currentTarget.dataset.shelf);
+      const targetSlot = Number(event.currentTarget.dataset.slot);
+      if (!selected || board[targetShelf][targetSlot]) {
+        return;
+      }
+
+      if (canMoveTo(selected.shelf, selected.slot, targetShelf, targetSlot)) {
+        moveItem(selected.shelf, selected.slot, targetShelf, targetSlot);
+      }
+    }
+
+    function selectItem(shelf, slot) {
+      if (isAnimating || !board[shelf][slot]) {
+        return;
+      }
+      if (selected && selected.shelf === shelf && selected.slot === slot) {
+        selected = null;
+      } else {
+        selected = { shelf, slot };
+      }
+      renderBoard();
+    }
+
+    function getSelectedItem() {
+      if (!selected) {
+        return null;
+      }
+      return board[selected.shelf]?.[selected.slot] || null;
+    }
+
+    function canMoveTo(sourceShelf, sourceSlot, targetShelf, targetSlot) {
+      if (sourceShelf === targetShelf && sourceSlot === targetSlot) {
+        return false;
+      }
+      return Boolean(board[sourceShelf]?.[sourceSlot])
+        && board[targetShelf]?.[targetSlot] === null;
+    }
+
+    function moveItem(sourceShelf, sourceSlot, targetShelf, targetSlot) {
+      const item = board[sourceShelf][sourceSlot];
+      board[sourceShelf][sourceSlot] = null;
+      board[targetShelf][targetSlot] = item;
+      promoteShelfIfFrontCleared(sourceShelf);
+      selected = null;
+      moves += 1;
+      syncHud();
+      renderBoard();
+      queueMergeCheck(targetShelf, sourceShelf);
+    }
+
+    function promoteShelfIfFrontCleared(shelfIndex) {
+      if (!board[shelfIndex].every((item) => item === null)) {
+        return false;
+      }
+
+      const hasHiddenRow = layers.some((layer, depth) => depth > 0 && layer[shelfIndex].some(Boolean));
+      if (!hasHiddenRow) {
+        return false;
+      }
+
+      for (let slotIndex = 0; slotIndex < SLOTS_PER_SHELF; slotIndex += 1) {
+        for (let depth = 1; depth < layers.length; depth += 1) {
+          layers[depth - 1][shelfIndex][slotIndex] = layers[depth][shelfIndex][slotIndex];
+          layers[depth][shelfIndex][slotIndex] = null;
+        }
+      }
+      trimEmptyLayers();
+      return true;
+    }
+
+    function hasOpenOrderForType(type) {
+      return activeOrders.some((order) => order.items.some((item) => !item.filled && item.type === type));
+    }
+
+    function fillOrderWithType(type, options = {}) {
+      for (const order of activeOrders) {
+        const itemIndex = order.items.findIndex((item) => !item.filled && item.type === type);
+        const orderItem = order.items[itemIndex];
+        if (!orderItem) {
+          continue;
+        }
+        const visual = getOrderVisual(order.id, itemIndex);
+        const sourceRect = options.sourceRect || visual.targetRect || getFallbackTargetRect();
+        orderItem.filled = true;
+        const completedOrder = order.items.every((item) => item.filled);
+        const completedCardHtml = completedOrder ? renderOrderGhostHtml(order) : "";
+        completedDeliveries += 1;
+        removeCompletedOrders();
+        if (options.animate !== false) {
+          animateItemMovement({ type, stage: MAX_STAGE }, sourceRect, visual.targetRect || getFallbackTargetRect());
+          if (completedOrder) {
+            animateCompletedOrder(visual.cardRect, completedCardHtml);
+          }
+        }
+        return true;
+      }
+      return false;
+    }
+
+    function removeCompletedOrders() {
+      activeOrders = activeOrders.filter((order) => !order.items.every((item) => item.filled));
+      while (activeOrders.length < levelConfig.orderCount && orderQueue.length) {
+        const nextOrder = orderQueue.shift();
+        incomingOrderIds.add(nextOrder.id);
+        activeOrders.push(nextOrder);
+      }
+    }
+
+    function canAutoDeliverBoardItem(item) {
+      if (!item || item.stage !== MAX_STAGE || !isOrderMode()) {
+        return false;
+      }
+      return !levelConfig.tripleThird || Boolean(item.ready);
+    }
+
+    function addToDock(item, options = {}) {
+      if (dockItems.length >= levelConfig.dockPositionCount) {
+        failLevel("DOCK FULL", "Dock filled before the order arrived");
+        return false;
+      }
+      const targetRect = getNextDockTargetRect();
+      dockItems.push({
+        uid: item.uid || `d${level}-${Date.now()}-${uid++}`,
+        type: item.type,
+        stage: MAX_STAGE,
+        ready: true
+      });
+      if (options.animate !== false) {
+        animateItemMovement(item, options.sourceRect || targetRect || getFallbackTargetRect(), targetRect || getFallbackTargetRect());
+      }
+      return true;
+    }
+
+    function routeFinishedItem(item, options = {}) {
+      if (!isOrderMode()) {
+        return "board";
+      }
+      if (fillOrderWithType(item.type, options)) {
+        return "order";
+      }
+      if (hasDock()) {
+        return addToDock(item, options) ? "dock" : "fail";
+      }
+      return "board";
+    }
+
+    function collectDockItemsForOrders(options = {}) {
+      if (!hasDock()) {
+        return false;
+      }
+      for (let index = 0; index < dockItems.length; index += 1) {
+        const dockItem = dockItems[index];
+        if (!hasOpenOrderForType(dockItem.type)) {
+          continue;
+        }
+        const sourceRect = getDockSourceRect(index);
+        dockItems.splice(index, 1);
+        fillOrderWithType(dockItem.type, { ...options, sourceRect });
+        return true;
+      }
+      return false;
+    }
+
+    function collectBoardItemsForOrders(options = {}) {
+      for (let shelfIndex = 0; shelfIndex < board.length; shelfIndex += 1) {
+        for (let slotIndex = 0; slotIndex < SLOTS_PER_SHELF; slotIndex += 1) {
+          const item = board[shelfIndex][slotIndex];
+          if (!canAutoDeliverBoardItem(item) || !hasOpenOrderForType(item.type)) {
+            continue;
+          }
+          const sourceRect = getBoardItemRect(item, shelfIndex, slotIndex);
+          board[shelfIndex][slotIndex] = null;
+          fillOrderWithType(item.type, { ...options, sourceRect });
+          promoteShelfIfFrontCleared(shelfIndex);
+          return true;
+        }
+      }
+      return false;
+    }
+
+    function moveBoardItemsToDock(options = {}) {
+      if (!hasDock() || levelConfig.tripleThird) {
+        return false;
+      }
+      for (let shelfIndex = 0; shelfIndex < board.length; shelfIndex += 1) {
+        for (let slotIndex = 0; slotIndex < SLOTS_PER_SHELF; slotIndex += 1) {
+          const item = board[shelfIndex][slotIndex];
+          if (!canAutoDeliverBoardItem(item)) {
+            continue;
+          }
+          const sourceRect = getBoardItemRect(item, shelfIndex, slotIndex);
+          board[shelfIndex][slotIndex] = null;
+          const docked = addToDock(item, { ...options, sourceRect });
+          promoteShelfIfFrontCleared(shelfIndex);
+          return docked;
+        }
+      }
+      return false;
+    }
+
+    function processAutoCollections(options = {}) {
+      const { render = true, check = true, animate = true } = options;
+      if (!isOrderMode() || levelFailed) {
+        return false;
+      }
+
+      let changed = false;
+      let renderedDuringLoop = false;
+      let guard = 0;
+      while (guard < 200 && !levelFailed) {
+        guard += 1;
+        const loopChanged = collectDockItemsForOrders({ animate })
+          || collectBoardItemsForOrders({ animate })
+          || moveBoardItemsToDock({ animate });
+        if (!loopChanged) {
+          break;
+        }
+        changed = true;
+        trimEmptyLayers();
+        syncLayerAliases();
+        if (render && animate) {
+          syncHud();
+          renderBoard();
+          renderedDuringLoop = true;
+        }
+      }
+
+      if (changed) {
+        syncHud();
+        if (render && !renderedDuringLoop) {
+          renderBoard();
+        }
+      }
+      if (check && !levelFailed) {
+        checkWin();
+      }
+      return changed;
+    }
+
+    function queueMergeCheck(...preferredShelves) {
+      window.setTimeout(() => {
+        if (isAnimating || levelFailed) {
+          return;
+        }
+        processAutoCollections({ render: true, check: false, animate: true });
+        const mergeShelf = findMergeShelf(preferredShelves);
+        if (mergeShelf >= 0) {
+          startMerge(mergeShelf);
+        } else if (!checkNoFrontSpaceFail()) {
+          renderBoard();
+          checkWin();
+        } else {
+          renderBoard();
+        }
+      }, 80);
+    }
+
+    function findMergeShelf(preferredShelves = []) {
+      const checked = new Set();
+      for (const shelfIndex of preferredShelves) {
+        if (checked.has(shelfIndex) || shelfIndex < 0 || shelfIndex >= board.length) {
+          continue;
+        }
+        checked.add(shelfIndex);
+        if (isMergeShelf(board[shelfIndex])) {
+          return shelfIndex;
+        }
+      }
+      return board.findIndex((shelf) => isMergeShelf(shelf));
+    }
+
+    function startMerge(shelfIndex) {
+      const shelf = board[shelfIndex];
+      const stage = shelf[1].stage;
+      const type = shelf[1].type;
+      isAnimating = true;
+
+      const shelfEl = boardEl.querySelector(`[data-shelf="${shelfIndex}"]`);
+      const items = shelfEl.querySelectorAll(".item");
+      items[0]?.classList.add("merge-left");
+      items[1]?.classList.add("merge-center");
+      items[2]?.classList.add("merge-right");
+
+      window.setTimeout(() => {
+        const deliverySourceRect = getMergeSourceRect(shelfIndex);
+        if (stage === MAX_STAGE) {
+          if (isOrderMode() && levelConfig.tripleThird) {
+            const finishedItem = {
+              uid: `r${level}-${Date.now()}-${uid++}`,
+              type,
+              stage: MAX_STAGE,
+              ready: true
+            };
+            const result = routeFinishedItem(finishedItem, { sourceRect: deliverySourceRect });
+            if (result === "board") {
+              board[shelfIndex] = [null, finishedItem, null];
+              showToast("Ready");
+            } else {
+              board[shelfIndex] = [null, null, null];
+              showToast(result === "dock" ? "Docked" : "Order");
+            }
+          } else {
+            board[shelfIndex] = [null, null, null];
+            showToast("Cleared");
+          }
+        } else {
+          const mergedItem = { uid: `m${level}-${Date.now()}-${uid++}`, type, stage: stage + 1 };
+          if (isOrderMode() && !levelConfig.tripleThird && mergedItem.stage === MAX_STAGE) {
+            const result = routeFinishedItem(mergedItem, { sourceRect: deliverySourceRect });
+            if (result === "board") {
+              board[shelfIndex] = [null, mergedItem, null];
+              showToast("Ready");
+            } else {
+              board[shelfIndex] = [null, null, null];
+              showToast(result === "dock" ? "Docked" : "Order");
+            }
+          } else {
+            board[shelfIndex] = [null, mergedItem, null];
+            showToast(stage === 0 ? "Ink merge" : "Color merge");
+          }
+        }
+        promoteShelfIfFrontCleared(shelfIndex);
+        isAnimating = false;
+        processAutoCollections({ render: true, check: false, animate: true });
+        renderBoard();
+        if (!levelFailed) {
+          queueMergeCheck(shelfIndex);
+        }
+      }, MERGE_TIME);
+    }
+
+    function hasFrontEmptySlot() {
+      return board.some((shelf) => shelf.some((item) => item === null));
+    }
+
+    function checkNoFrontSpaceFail() {
+      if (levelFailed || countItems() === 0 || hasFrontEmptySlot()) {
+        return false;
+      }
+      failLevel("NO SPACE", "No empty front slot left");
+      return true;
+    }
+
+    function hasPendingOrders() {
+      return activeOrders.some((order) => order.items.some((item) => !item.filled)) || orderQueue.length > 0;
+    }
+
+    function failLevel(title, message) {
+      if (levelFailed) {
+        return;
+      }
+      levelFailed = true;
+      selected = null;
+      dragState = null;
+      isAnimating = false;
+      winOverlay.querySelector("h2").textContent = title;
+      winStats.textContent = message;
+      nextButton.textContent = "Restart";
+      winOverlay.hidden = false;
+      syncHud();
+      renderOrdersPanel();
+    }
+
+    function checkWin() {
+      if (levelFailed || countItems() !== 0) {
+        return;
+      }
+      if (isOrderMode() && (hasPendingOrders() || dockItems.length > 0)) {
+        return;
+      }
+      winStats.textContent = `Level ${level} - ${moves} moves`;
+      winOverlay.querySelector("h2").textContent = "CLEAR THE BOARD";
+      nextButton.textContent = "Next Level";
+      winOverlay.hidden = false;
+    }
+
+    function getAllItems() {
+      return layers.flatMap((layer) => layer.flat()).filter(Boolean);
+    }
+
+    function countItems() {
+      return getAllItems().length;
+    }
+
+    function wouldCompleteMerge(shelfIndex, item) {
+      if (item.stage === MAX_STAGE && isOrderMode() && (!levelConfig.tripleThird || item.ready)) {
+        return false;
+      }
+      const shelf = board[shelfIndex];
+      const matches = shelf.filter((cell) => cell && cell.type === item.type && cell.stage === item.stage).length;
+      const empties = shelf.filter((cell) => !cell).length;
+      return matches === 2 && empties >= 1;
+    }
+
+    function showToast(text) {
+      toast.textContent = text;
+      toast.hidden = false;
+      window.clearTimeout(toastTimer);
+      toastTimer = window.setTimeout(() => {
+        toast.hidden = true;
+      }, 760);
+    }
+
+    function getItemMeta(type) {
+      return ITEMS.find((item) => item.id === type) || ITEMS[0];
+    }
+
+    function stageStyle(item) {
+      const meta = getItemMeta(item.type);
+      if (item.stage === 0) {
+        return {
+          fill: "none",
+          stroke: "#20282d",
+          accent: "none",
+          accentStroke: "#20282d",
+          detail: "#20282d",
+          width: 4.8
+        };
+      }
+      if (item.stage === 1) {
+        return {
+          fill: "#fbfaf6",
+          stroke: "#111417",
+          accent: "#161616",
+          accentStroke: "#111417",
+          detail: "#111417",
+          width: 4.1
+        };
+      }
+      return {
+        fill: meta.color,
+        stroke: "#172026",
+        accent: meta.accent,
+        accentStroke: "#172026",
+        detail: "#fff6df",
+        width: 3.5
+      };
+    }
+
+    function renderIcon(item) {
+      const meta = getItemMeta(item.type);
+      const style = stageStyle(item);
+      const common = `stroke="${style.stroke}" stroke-width="${style.width}" stroke-linecap="round" stroke-linejoin="round"`;
+      const filled = `fill="${style.fill}" ${common}`;
+      const accent = `fill="${style.accent}" stroke="${style.accentStroke}" stroke-width="${style.width}" stroke-linecap="round" stroke-linejoin="round"`;
+      const line = `fill="none" ${common}`;
+      const detail = `stroke="${style.detail}" stroke-width="${Math.max(2.8, style.width - 1)}" stroke-linecap="round" stroke-linejoin="round"`;
+      const blot = item.stage === 1
+        ? `<path d="M26 31c7-10 18-11 26-5 8 7 6 18-4 22-10 5-25-3-22-17Z" fill="#111417" opacity=".16"></path>`
+        : "";
+
+      const body = {
+        mug: `
+          ${blot}
+          <path d="M29 35h34l-4 38H33L29 35Z" ${filled}></path>
+          <path d="M63 43h5c8 0 11 7 8 14-2 6-7 9-14 8" ${line}></path>
+          <path d="M35 29c-2-5 3-6 1-10M48 29c-2-5 3-7 1-12M59 29c-1-5 3-6 2-10" ${line}></path>
+          <path d="M37 47h18" ${detail} fill="none"></path>
+        `,
+        plant: `
+          ${blot}
+          <path d="M34 58h32l-5 22H39L34 58Z" ${accent}></path>
+          <path d="M50 58V31" ${line}></path>
+          <path d="M50 40c-12-9-22-6-24 8 12 3 20 0 24-8Z" ${filled}></path>
+          <path d="M51 43c11-12 23-10 27 3-10 6-20 5-27-3Z" ${filled}></path>
+          <path d="M50 34c-3-13 5-22 17-18 2 12-5 19-17 18Z" ${filled}></path>
+        `,
+        shoe: `
+          ${blot}
+          <path d="M20 62c14 0 25-8 32-23 10 5 15 12 19 23h9c5 0 8 4 8 9v5H22c-8 0-11-6-8-14h6Z" ${filled}></path>
+          <path d="M18 76h70" ${accent}></path>
+          <path d="M45 53l12 7M53 48l12 8M36 60h12" ${detail} fill="none"></path>
+        `,
+        camera: `
+          ${blot}
+          <path d="M21 36h18l5-8h17l5 8h13v37H21V36Z" ${filled}></path>
+          <circle cx="51" cy="55" r="14" ${accent}></circle>
+          <circle cx="51" cy="55" r="6" fill="${item.stage === 2 ? "#fff8df" : "none"}" ${common}></circle>
+          <path d="M68 44h7" ${detail} fill="none"></path>
+        `,
+        lamp: `
+          ${blot}
+          <path d="M34 23h32l9 32H25L34 23Z" ${filled}></path>
+          <path d="M50 55v22" ${line}></path>
+          <path d="M33 80h34" ${accent}></path>
+          <path d="M42 35h16M38 45h24" ${detail} fill="none"></path>
+        `,
+        gem: `
+          ${blot}
+          <path d="M27 25h46l14 21-37 37-37-37 14-21Z" ${filled}></path>
+          <path d="M27 25l23 58M73 25 50 83M13 46h74M35 25l-9 21M65 25l9 21" ${line}></path>
+          <path d="M38 31h24" ${detail} fill="none"></path>
+        `,
+        book: `
+          ${blot}
+          <path d="M22 26h25c7 0 10 4 10 10v40H31c-5 0-9-4-9-9V26Z" ${filled}></path>
+          <path d="M57 36c0-6 4-10 10-10h11v50H57V36Z" ${accent}></path>
+          <path d="M32 39h15M32 51h15M63 41h9M63 53h9" ${detail} fill="none"></path>
+        `,
+        cap: `
+          ${blot}
+          <path d="M20 58c8-20 25-29 48-19 7 3 11 9 12 16-17-4-36-3-60 3Z" ${filled}></path>
+          <path d="M59 56c12 1 23 5 30 12-14 4-27 2-38-7" ${accent}></path>
+          <path d="M36 50c10-8 21-10 34-5" ${detail} fill="none"></path>
+        `,
+        watch: `
+          ${blot}
+          <path d="M40 14h20l-4 22H44L40 14Z" ${accent}></path>
+          <circle cx="50" cy="52" r="19" ${filled}></circle>
+          <path d="M44 68h12l4 19H40l4-19Z" ${accent}></path>
+          <path d="M50 42v12l9 6" ${detail} fill="none"></path>
+        `,
+        perfume: `
+          ${blot}
+          <path d="M42 21h16v12H42V21Z" ${accent}></path>
+          <path d="M34 39h32l7 10v30H27V49l7-10Z" ${filled}></path>
+          <path d="M39 56h22v14H39V56Z" fill="${item.stage === 2 ? "#fff8df" : "none"}" ${common}></path>
+          <path d="M58 26h12" ${line}></path>
+        `,
+        ball: `
+          ${blot}
+          <circle cx="50" cy="52" r="31" ${filled}></circle>
+          <path d="M28 32c14 12 32 25 50 34M72 31c-9 11-13 27-10 48M20 52c20-6 40-6 60 0" ${line}></path>
+          <path d="M35 70c10-5 20-5 30 0" ${detail} fill="none"></path>
+        `,
+        bag: `
+          ${blot}
+          <path d="M24 38h52l-5 42H29L24 38Z" ${filled}></path>
+          <path d="M38 39c0-17 24-17 24 0" ${line}></path>
+          <path d="M34 53h32" ${detail} fill="none"></path>
+        `,
+        bottle: `
+          ${blot}
+          <path d="M42 18h16v17l10 11v34H32V46l10-11V18Z" ${filled}></path>
+          <path d="M41 18h18" ${accent}></path>
+          <path d="M38 56h24v14H38V56Z" fill="${item.stage === 2 ? "#fff8df" : "none"}" ${common}></path>
+        `,
+        headphones: `
+          ${blot}
+          <path d="M23 56c0-23 11-36 27-36s27 13 27 36" ${line}></path>
+          <path d="M23 55h14v24H23V55Z" ${filled}></path>
+          <path d="M63 55h14v24H63V55Z" ${filled}></path>
+          <path d="M37 73h26" ${accent}></path>
+        `,
+        controller: `
+          ${blot}
+          <path d="M25 45c4-10 14-14 25-7 10-7 21-3 25 7l7 21c3 10-8 17-16 9l-8-7H42l-8 7c-8 8-19 1-16-9l7-21Z" ${filled}></path>
+          <path d="M34 55h16M42 47v16M62 54h1M72 60h1" ${detail} fill="none"></path>
+        `,
+        donut: `
+          ${blot}
+          <circle cx="50" cy="53" r="31" ${filled}></circle>
+          <circle cx="50" cy="53" r="12" fill="${item.stage === 2 ? "#fff8df" : "none"}" ${common}></circle>
+          <path d="M32 43l9-6M65 39l7 7M36 68l8 5M61 68l9-4" ${detail} fill="none"></path>
+        `,
+        rocket: `
+          ${blot}
+          <path d="M51 14c17 12 21 36 8 55H41c-13-19-9-43 10-55Z" ${filled}></path>
+          <circle cx="50" cy="40" r="9" ${accent}></circle>
+          <path d="M40 61l-14 16 2-25M60 61l14 16-2-25" ${accent}></path>
+          <path d="M44 76l6 12 6-12" ${line}></path>
+        `,
+        pencil: `
+          ${blot}
+          <path d="M25 68l9 9 39-39-9-9-39 39Z" ${filled}></path>
+          <path d="M64 29l7-7 9 9-7 7" ${accent}></path>
+          <path d="M25 68l-5 14 14-5" ${line}></path>
+          <path d="M36 66l30-30" ${detail} fill="none"></path>
+        `,
+        gift: `
+          ${blot}
+          <path d="M24 42h52v38H24V42Z" ${filled}></path>
+          <path d="M20 33h60v14H20V33Z" ${accent}></path>
+          <path d="M50 33v47M34 33c-10-12 8-20 16 0M66 33c10-12-8-20-16 0" ${line}></path>
+        `,
+        glasses: `
+          ${blot}
+          <path d="M19 47h24l-4 20H25l-6-20Z" ${filled}></path>
+          <path d="M57 47h24l-6 20H61l-4-20Z" ${filled}></path>
+          <path d="M43 53c5-4 9-4 14 0M19 47l-7-4M81 47l7-4" ${line}></path>
+        `,
+        clock: `
+          ${blot}
+          <circle cx="50" cy="54" r="29" ${filled}></circle>
+          <path d="M34 22l-10 9M66 22l10 9" ${accent}></path>
+          <path d="M50 39v17l12 8M38 85h24" ${detail} fill="none"></path>
+        `,
+        key: `
+          ${blot}
+          <circle cx="36" cy="49" r="17" ${filled}></circle>
+          <path d="M52 49h32v10H72v10H61V59h-9" ${accent}></path>
+          <circle cx="36" cy="49" r="6" fill="${item.stage === 2 ? "#fff8df" : "none"}" ${common}></circle>
+        `,
+        brush: `
+          ${blot}
+          <path d="M34 23h30l-5 31H39L34 23Z" ${filled}></path>
+          <path d="M41 54h16l11 28H30l11-28Z" ${accent}></path>
+          <path d="M41 33h18M38 43h24" ${detail} fill="none"></path>
+        `,
+        cupcake: `
+          ${blot}
+          <path d="M29 50c0-16 11-26 23-22 8-10 24 0 17 14 9 1 14 9 9 18H29Z" ${filled}></path>
+          <path d="M32 59h36l-6 24H38L32 59Z" ${accent}></path>
+          <path d="M41 66l2 12M50 66v12M59 66l-2 12" ${detail} fill="none"></path>
+        `,
+        phone: `
+          ${blot}
+          <path d="M34 17h32v66H34V17Z" ${filled}></path>
+          <path d="M40 27h20v42H40V27Z" fill="${item.stage === 2 ? meta.accent : "none"}" ${common}></path>
+          <path d="M47 75h6" ${detail} fill="none"></path>
+        `
+      }[meta.id] || `
+        ${blot}
+        <path d="M27 25h46l14 21-37 37-37-37 14-21Z" ${filled}></path>
+        <path d="M27 25l23 58M73 25 50 83M13 46h74" ${line}></path>
+      `;
+
+      return `
+        <svg viewBox="0 0 100 100" aria-hidden="true">
+          <ellipse cx="50" cy="86" rx="30" ry="5" fill="rgba(30, 24, 20, .16)"></ellipse>
+          ${body}
+        </svg>
+      `;
+    }
+
+    panelButton.addEventListener("click", () => {
+      builderPanel.hidden = !builderPanel.hidden;
+      panelButton.setAttribute("aria-expanded", String(!builderPanel.hidden));
+    });
+
+    levelForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const config = readConfigFromForm();
+      const generated = newLevel(config, level + 1);
+      if (generated) {
+        builderPanel.hidden = true;
+        panelButton.setAttribute("aria-expanded", "false");
+        showToast("Generated");
+      }
+    });
+
+    modeInput.addEventListener("input", syncModeFields);
+    targetInput.addEventListener("input", syncTypeLimit);
+    shelfInput.addEventListener("input", () => {
+      syncSpaceLimit();
+      syncObjectLimit();
+    });
+    stageInput.addEventListener("input", syncObjectLimit);
+    edgeColorInput.addEventListener("input", applyShelfColors);
+    insideColorInput.addEventListener("input", applyShelfColors);
+    baseColorInput.addEventListener("input", applyShelfColors);
+    restartButton.addEventListener("click", restartLevel);
+    nextButton.addEventListener("click", () => {
+      if (levelFailed) {
+        restartLevel();
+      } else {
+        newLevel(levelConfig, level + 1);
+      }
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && !builderPanel.hidden) {
+        builderPanel.hidden = true;
+        panelButton.setAttribute("aria-expanded", "false");
+      }
+    });
+
+    applyShelfColors();
+    syncModeFields();
+    newLevel(levelConfig, level);
+  </script>
+</body>
+</html>
